@@ -1,13 +1,23 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { Send, Plus, Trash2, Bot, User, Sparkles } from 'lucide-react'
 import clsx from 'clsx'
+import { API_URL, USE_MOCK } from '../lib/api'
 
 type Message = { role: 'user' | 'ai'; content: string; time: string }
 type Review = { id: number; title: string; date: string; preview: string; messages: Message[] }
 
 const now = () => new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
 const today = () => new Date().toLocaleDateString('zh-CN', { month: 'long', day: 'numeric' })
+const fmtDate = (iso: string) => new Date(iso).toLocaleDateString('zh-CN', { month: 'long', day: 'numeric' })
 
+const PROMPTS = [
+  '帮我分析本周持仓表现',
+  '我今天买入了XXX，帮我复盘决策逻辑',
+  '为什么我总是追涨杀跌？',
+  '帮我制定下周操作计划',
+]
+
+// ── Mock 数据（USE_MOCK 模式下使用）──
 const INIT_REVIEWS: Review[] = [
   {
     id: 1, title: '5月第三周复盘', date: '2026-05-21',
@@ -19,14 +29,6 @@ const INIT_REVIEWS: Review[] = [
   },
 ]
 
-const PROMPTS = [
-  '帮我分析本周持仓表现',
-  '我今天买入了XXX，帮我复盘决策逻辑',
-  '为什么我总是追涨杀跌？',
-  '帮我制定下周操作计划',
-]
-
-// 模拟 AI 回复
 function mockAiReply(userMsg: string): string {
   if (userMsg.includes('追涨杀跌')) {
     return '追涨杀跌是人类大脑的默认模式，不是你的问题，是进化的结果。\n\n**根本原因：**\n大脑把"价格上涨"解读为"安全信号"，把"价格下跌"解读为"危险信号"。这在原始社会很有用，但在投资里完全反过来了。\n\n**实用的破解方法：**\n1. 买入前写下理由，不是"它在涨"，而是"PE低于历史均值X%"\n2. 设定机械规则：跌X%加仓，涨X%减仓，不允许情绪覆盖规则\n3. 复盘时专门记录"情绪驱动的操作"，看看结果如何\n\n你最近一次追涨杀跌是什么时候？说说具体情况，我帮你分析。'
@@ -37,51 +39,204 @@ function mockAiReply(userMsg: string): string {
   return '收到你的复盘内容。\n\n**我的分析：**\n你描述的操作有几个值得深入思考的点。投资决策的质量不只看结果，更要看决策时的逻辑是否清晰。\n\n**建议你回答这几个问题：**\n1. 这次操作的核心理由是什么？\n2. 如果结果相反，你会怎么解释？\n3. 下次遇到类似情况，你会怎么做？\n\n把这些写下来，复盘的价值才能真正体现出来。'
 }
 
+// ── API helpers ──
+const TOKEN = 'mock-token'
+const authHeaders = () => ({ 'Content-Type': 'application/json', Authorization: `Bearer ${TOKEN}` })
+
 export default function ReviewPage() {
-  const [reviews, setReviews] = useState(INIT_REVIEWS)
-  const [activeId, setActiveId] = useState(1)
+  const [reviews, setReviews] = useState<Review[]>([])
+  const [activeId, setActiveId] = useState<number>(0)
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
+  const [initLoading, setInitLoading] = useState(true)
   const bottomRef = useRef<HTMLDivElement>(null)
 
-  const active = reviews.find(r => r.id === activeId)!
+  const active = reviews.find(r => r.id === activeId)
 
-  const sendMessage = () => {
-    if (!input.trim() || loading) return
-    const userMsg: Message = { role: 'user', content: input.trim(), time: now() }
-    const updated = reviews.map(r => r.id === activeId
-      ? { ...r, messages: [...r.messages, userMsg], preview: input.trim().slice(0, 30) + '...' }
+  // ── 加载列表 + 详情 ──
+  const loadReviews = useCallback(async () => {
+    setInitLoading(true)
+    if (USE_MOCK) {
+      setReviews(INIT_REVIEWS)
+      setActiveId(INIT_REVIEWS[0]?.id ?? 0)
+      setInitLoading(false)
+      return
+    }
+    try {
+      const res = await fetch(`${API_URL}/reviews?limit=50`, { headers: authHeaders() })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const data = await res.json()
+      const list: Review[] = (data.items ?? []).map((r: Record<string, unknown>) => ({
+        id: r.id as number,
+        title: r.title as string,
+        date: fmtDate(r.updated_at as string),
+        preview: (r.preview as string) || `${r.message_count}条对话`,
+        messages: [],
+      }))
+      setReviews(list)
+      if (list.length > 0) {
+        setActiveId(list[0].id)
+        await loadDetail(list[0].id)
+      }
+    } catch {
+      // API 失败时降级 Mock
+      setReviews(INIT_REVIEWS)
+      setActiveId(INIT_REVIEWS[0]?.id ?? 0)
+    } finally {
+      setInitLoading(false)
+    }
+  }, [])
+
+  // ── 加载某条复盘的消息 ──
+  const loadDetail = useCallback(async (reviewId: number) => {
+    if (USE_MOCK) return
+    try {
+      const res = await fetch(`${API_URL}/reviews/${reviewId}`, { headers: authHeaders() })
+      if (!res.ok) return
+      const data = await res.json()
+      const messages: Message[] = (data.messages ?? []).map((m: Record<string, unknown>) => ({
+        role: m.role === 'assistant' ? 'ai' : 'user',
+        content: m.content as string,
+        time: new Date(m.created_at as string).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
+      }))
+      setReviews(prev => prev.map(r => r.id === reviewId ? { ...r, messages } : r))
+    } catch { /* silent */ }
+  }, [])
+
+  useEffect(() => { loadReviews() }, [loadReviews])
+
+  // ── 发送消息 ──
+  const sendMessage = async () => {
+    if (!input.trim() || loading || !active) return
+    const text = input.trim()
+    const userMsg: Message = { role: 'user', content: text, time: now() }
+
+    // 乐观更新：先显示用户消息
+    setReviews(prev => prev.map(r => r.id === activeId
+      ? { ...r, messages: [...r.messages, userMsg], preview: text.slice(0, 30) + '...' }
       : r
-    )
-    setReviews(updated)
+    ))
     setInput('')
     setLoading(true)
-    setTimeout(() => {
-      const aiMsg: Message = { role: 'ai', content: mockAiReply(userMsg.content), time: now() }
+
+    if (USE_MOCK) {
+      setTimeout(() => {
+        const aiMsg: Message = { role: 'ai', content: mockAiReply(text), time: now() }
+        setReviews(prev => prev.map(r => r.id === activeId
+          ? { ...r, messages: [...r.messages, aiMsg] }
+          : r
+        ))
+        setLoading(false)
+      }, 900)
+      return
+    }
+
+    try {
+      const res = await fetch(`${API_URL}/reviews/${activeId}/chat`, {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({ message: text }),
+      })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const data = await res.json()
+      const aiMsg: Message = {
+        role: 'ai',
+        content: data.assistant_message.content,
+        time: new Date(data.assistant_message.created_at).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
+      }
       setReviews(prev => prev.map(r => r.id === activeId
         ? { ...r, messages: [...r.messages, aiMsg] }
         : r
       ))
+    } catch {
+      const aiMsg: Message = {
+        role: 'ai',
+        content: '⚠️ 网络错误，请稍后重试。',
+        time: now(),
+      }
+      setReviews(prev => prev.map(r => r.id === activeId
+        ? { ...r, messages: [...r.messages, aiMsg] }
+        : r
+      ))
+    } finally {
       setLoading(false)
-    }, 900)
+    }
   }
 
-  const newReview = () => {
-    const id = Date.now()
-    const r: Review = { id, title: `${today()}复盘`, date: new Date().toISOString().slice(0,10), preview: '新建复盘...', messages: [] }
-    setReviews(prev => [r, ...prev])
+  // ── 新建复盘 ──
+  const newReview = async () => {
+    if (USE_MOCK) {
+      const id = Date.now()
+      const r: Review = { id, title: `${today()}复盘`, date: new Date().toISOString().slice(0,10), preview: '新建复盘...', messages: [] }
+      setReviews(prev => [r, ...prev])
+      setActiveId(id)
+      return
+    }
+    try {
+      const res = await fetch(`${API_URL}/reviews`, {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({}),
+      })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const data = await res.json()
+      const r: Review = {
+        id: data.id,
+        title: data.title,
+        date: fmtDate(data.created_at),
+        preview: '新建复盘...',
+        messages: [],
+      }
+      setReviews(prev => [r, ...prev])
+      setActiveId(data.id)
+    } catch { /* silent */ }
+  }
+
+  // ── 删除复盘 ──
+  const deleteReview = async (id: number) => {
+    if (USE_MOCK) {
+      const rest = reviews.filter(r => r.id !== id)
+      setReviews(rest)
+      if (activeId === id) setActiveId(rest[0]?.id ?? 0)
+      return
+    }
+    try {
+      const res = await fetch(`${API_URL}/reviews/${id}`, {
+        method: 'DELETE',
+        headers: authHeaders(),
+      })
+      if (!res.ok) return
+      const rest = reviews.filter(r => r.id !== id)
+      setReviews(rest)
+      if (activeId === id) {
+        setActiveId(rest[0]?.id ?? 0)
+        if (rest.length > 0) await loadDetail(rest[0].id)
+      }
+    } catch { /* silent */ }
+  }
+
+  // ── 切换复盘时加载详情 ──
+  const switchReview = (id: number) => {
     setActiveId(id)
-  }
-
-  const deleteReview = (id: number) => {
-    const rest = reviews.filter(r => r.id !== id)
-    setReviews(rest)
-    if (activeId === id) setActiveId(rest[0]?.id ?? 0)
+    if (!USE_MOCK) loadDetail(id)
   }
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [active?.messages.length, loading])
+
+  if (initLoading) {
+    return (
+      <div className="h-full flex items-center justify-center">
+        <div className="flex gap-1 items-center h-5">
+          {[0,1,2].map(i => (
+            <div key={i} className="w-2 h-2 rounded-full bg-[#00d4aa] animate-bounce"
+              style={{ animationDelay: `${i * 0.15}s` }} />
+          ))}
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="h-full flex overflow-hidden">
@@ -94,8 +249,11 @@ export default function ReviewPage() {
           </button>
         </div>
         <div className="flex-1 overflow-auto py-2">
+          {reviews.length === 0 && (
+            <p className="text-gray-600 text-xs text-center py-4">暂无复盘记录</p>
+          )}
           {reviews.map(r => (
-            <div key={r.id} onClick={() => setActiveId(r.id)}
+            <div key={r.id} onClick={() => switchReview(r.id)}
               className={clsx('group px-3 py-2.5 cursor-pointer flex items-start gap-2 transition',
                 activeId === r.id ? 'bg-[#1f2937]' : 'hover:bg-[#111827]'
               )}>
@@ -118,7 +276,7 @@ export default function ReviewPage() {
         <div className="px-5 py-3 border-b border-[#1f2937] flex items-center gap-3">
           <Sparkles size={16} className="text-[#00d4aa]" />
           <div>
-            <p className="text-white font-semibold text-sm">{active?.title}</p>
+            <p className="text-white font-semibold text-sm">{active?.title || '选择或新建复盘'}</p>
             <p className="text-gray-500 text-xs">和 AI 一起复盘，沉淀投资经验</p>
           </div>
         </div>
