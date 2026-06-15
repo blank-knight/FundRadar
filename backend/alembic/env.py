@@ -18,6 +18,7 @@ from app.models.models import (  # noqa: F401 — 确保所有模型被注册
     User, Order, Blogger, Prediction, PredictionVerification,
     MarketData, News, DailySignal, Watchlist, CrawlLog,
     Portfolio, PortfolioAnalysis, SignalVerification, SignalReview,
+    TradeReview, TradeReviewMessage,
 )
 
 config = context.config

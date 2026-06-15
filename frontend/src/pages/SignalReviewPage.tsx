@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { ChevronDown, ChevronUp, AlertTriangle, CheckCircle, Clock } from 'lucide-react'
 import clsx from 'clsx'
 
-const API = 'http://localhost:8001/api'
+import { API_URL, USE_MOCK } from '../lib/api'
 
 type Review = {
   id: number
@@ -105,9 +105,15 @@ export default function SignalReviewPage() {
     setLoading(true)
     setError('')
     try {
+      if (USE_MOCK) {
+        await new Promise(r => setTimeout(r, 500))
+        setReviews([])
+        setError('')
+        return
+      }
       const params = new URLSearchParams({ limit: '20', offset: '0' })
       if (sym) params.set('symbol', sym)
-      const res = await fetch(`${API}/signals/reviews?${params}`)
+      const res = await fetch(`${API_URL}/signals/reviews?${params}`)
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const data = await res.json()
       setReviews(data.items ?? data.reviews ?? [])

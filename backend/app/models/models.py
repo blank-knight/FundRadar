@@ -374,6 +374,41 @@ class SignalVerification(Base):
     )
 
 
+class TradeReview(Base):
+    """用户手动复盘记录（对话式）。"""
+    __tablename__ = "trade_reviews"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+
+    title: Mapped[str] = mapped_column(String(100), nullable=False)
+    preview: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)  # 最后一条消息预览
+    message_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+
+    # Metadata
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    # Relationships
+    messages = relationship("TradeReviewMessage", back_populates="review", order_by="TradeReviewMessage.id", cascade="all, delete-orphan")
+
+
+class TradeReviewMessage(Base):
+    """复盘对话中的单条消息。"""
+    __tablename__ = "trade_review_messages"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    review_id: Mapped[int] = mapped_column(Integer, ForeignKey("trade_reviews.id"), nullable=False, index=True)
+
+    role: Mapped[str] = mapped_column(String(10), nullable=False)  # "user" / "assistant"
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+
+    # Relationships
+    review = relationship("TradeReview", back_populates="messages")
+
+
 class SignalReview(Base):
     """信号复盘报告 — 连续出错时触发 LLM 深度复盘，存档供人工参考。"""
     __tablename__ = "signal_reviews"

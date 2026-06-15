@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
-from app.api.routes import auth, orders, telegram, portfolio, bloggers, signals
+from app.api.routes import auth, orders, telegram, portfolio, bloggers, signals, reviews
 from app.scheduler.scheduler import setup_scheduler
 
 # Create FastAPI app
@@ -31,6 +31,7 @@ app.include_router(telegram.router, prefix=settings.API_PREFIX)
 app.include_router(portfolio.router, prefix=settings.API_PREFIX)
 app.include_router(bloggers.router, prefix=settings.API_PREFIX)
 app.include_router(signals.router, prefix=settings.API_PREFIX)
+app.include_router(reviews.router, prefix=settings.API_PREFIX)
 
 
 @app.on_event("startup")

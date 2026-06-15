@@ -369,6 +369,54 @@ class SignalReviewListResponse(BaseModel):
     items: list[SignalReviewResponse]
 
 
+# ============ Trade Review (用户复盘对话) Schemas ============
+
+class TradeReviewCreate(BaseModel):
+    title: Optional[str] = Field(None, max_length=100, description="复盘标题，不填则自动生成")
+
+
+class TradeReviewMessageResponse(BaseModel):
+    id: int
+    role: str   # "user" / "assistant"
+    content: str
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class TradeReviewResponse(BaseModel):
+    id: int
+    title: str
+    preview: Optional[str] = None
+    message_count: int
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class TradeReviewDetailResponse(TradeReviewResponse):
+    """复盘详情 — 包含所有消息。"""
+    messages: list[TradeReviewMessageResponse] = []
+
+
+class TradeReviewListResponse(BaseModel):
+    total: int
+    items: list[TradeReviewResponse]
+
+
+class TradeReviewChatRequest(BaseModel):
+    message: str = Field(..., min_length=1, max_length=2000)
+
+
+class TradeReviewChatResponse(BaseModel):
+    """AI 回复 — 同时返回 user_message_id 和 assistant_message_id 便于前端渲染。"""
+    user_message: TradeReviewMessageResponse
+    assistant_message: TradeReviewMessageResponse
+
+
 # ============ Common Schemas ============
 
 class Token(BaseModel):

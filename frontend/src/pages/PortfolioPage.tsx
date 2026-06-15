@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Plus, Trash2, TrendingUp, TrendingDown, Wallet, Sparkles, Loader2 } from 'lucide-react'
 import clsx from 'clsx'
 
-const API = 'http://localhost:8001/api'
+import { API_URL, USE_MOCK } from '../lib/api'
 
 type AnalysisResult = {
   fund_code: string
@@ -126,7 +126,22 @@ export default function PortfolioPage() {
     try {
       // 用 mock token，实际对接后端 auth 时替换
       const token = 'mock-token'
-      const res = await fetch(`${API}/portfolio/analyze/batch`, {
+      if (USE_MOCK) {
+        // mock 模式：模拟延迟后返回假数据
+        await new Promise(r => setTimeout(r, 800))
+        const mockResults = INIT_POSITIONS.map(p => ({
+          fund_code: p.code,
+          recommendation: p.signal === 'bull' ? '买入' : p.signal === 'bear' ? '减仓' : '持有',
+          reasoning: `${p.name}当前净值 ${p.currentNav}，${p.signal === 'bull' ? '趋势向上，适合持有' : '趋势向下，注意风险'}`,
+          confidence: 0.6 + Math.random() * 0.35,
+        }))
+        const mockMap: Record<string, AnalysisResult> = {}
+        for (const item of mockResults) mockMap[item.fund_code] = item
+        setAnalysisMap(mockMap)
+        setAnalyzing(false)
+        return
+      }
+      const res = await fetch(`${API_URL}/portfolio/analyze/batch`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ fund_codes: positions.map(p => p.code) }),
