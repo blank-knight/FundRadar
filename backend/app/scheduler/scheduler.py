@@ -11,6 +11,8 @@ from apscheduler.triggers.cron import CronTrigger
 from app.scheduler.jobs import (
     job_market_data,
     job_xueqiu_crawl,
+    job_weibo_crawl,
+    job_sentiment_crawl,
     job_news_crawl,
     job_verify_blogger_predictions,
     job_generate_signal,
@@ -39,12 +41,22 @@ def setup_scheduler() -> AsyncIOScheduler:
         misfire_grace_time=300,
     )
 
-    # 10:00 — 爬博主帖子 + 解析预测
+    # 10:00 — 爬雪球博主帖子 + 解析预测
     scheduler.add_job(
         job_xueqiu_crawl,
         CronTrigger(hour=10, minute=0, timezone=TIMEZONE),
         id="xueqiu_crawl",
         name="雪球博主爬取",
+        replace_existing=True,
+        misfire_grace_time=300,
+    )
+
+    # 10:15 — 爬微博大V帖子 + 解析预测
+    scheduler.add_job(
+        job_weibo_crawl,
+        CronTrigger(hour=10, minute=15, timezone=TIMEZONE),
+        id="weibo_crawl",
+        name="微博大V爬取",
         replace_existing=True,
         misfire_grace_time=300,
     )
@@ -55,6 +67,16 @@ def setup_scheduler() -> AsyncIOScheduler:
         CronTrigger(hour=10, minute=30, timezone=TIMEZONE),
         id="news_crawl",
         name="财经新闻爬取",
+        replace_existing=True,
+        misfire_grace_time=300,
+    )
+
+    # 10:45 — 爬散户情绪数据（akshare 微博NLP + 东财评论）
+    scheduler.add_job(
+        job_sentiment_crawl,
+        CronTrigger(hour=10, minute=45, timezone=TIMEZONE),
+        id="sentiment_crawl",
+        name="散户情绪爬取",
         replace_existing=True,
         misfire_grace_time=300,
     )

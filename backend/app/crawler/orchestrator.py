@@ -7,9 +7,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
 from app.crawler.xueqiu import XueqiuCrawler
+from app.crawler.weibo import WeiboCrawler, DEFAULT_WEIBO_KOLS
+from app.crawler.sentiment import SentimentCrawler
 from app.crawler.news import NewsCrawler
 from app.crawler.fund_nav import FundNavCrawler, TRACKED_INDICES
-from app.models.models import Blogger, Prediction, News, MarketData, CrawlLog
+from app.models.models import (
+    Blogger, Prediction, News, MarketData, CrawlLog,
+    RetailSentiment,
+)
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
@@ -206,6 +211,166 @@ async def run_market_data_crawl(db: AsyncSession) -> dict:
     await _write_crawl_log(db, "market_data", status, fetched, saved, skipped, duration, error_msg, snapshot)
     logger.info(f"Market data crawl done: fetched={fetched} saved={saved} skipped={skipped}")
     return {"saved_records": saved, "skipped": skipped, "fetched": fetched}
+
+
+async def run_weibo_crawl(db: AsyncSession) -> dict:
+    """爬取微博大V帖子并存入 predictions 表。"""
+    t0 = time.time()
+    saved_posts = 0
+    skipped = 0
+    fetched = 0
+    snapshot = {"kols": []}
+    error_msg = None
+
+    try:
+        # 从数据库读已关注的微博博主，没有则用默认
+        db_bloggers_result = await db.execute(
+            select(Blogger).where(
+                Blogger.platform == "weibo",
+                Blogger.is_active == True,
+            )
+        )
+        db_bloggers = db_bloggers_result.scalars().all()
+
+        # 如果DB没有微博博主，用默认KOL列表
+        kols = []
+        if db_bloggers:
+            for b in db_bloggers:
+                kols.append({"uid": b.platform_user_id, "username": b.username})
+        else:
+            kols = DEFAULT_WEIBO_KOLS
+
+        async with WeiboCrawler() as crawler:
+            for kol in kols:
+                uid = kol["uid"]
+                posts = await crawler.get_user_timeline(uid, page=1)
+                fetched += len(posts)
+                kol_saved = 0
+
+                for post in posts:
+                    if not post.get("post_url") or not post.get("content"):
+                        skipped += 1
+                        continue
+
+                    # 检查是否已存在（微博和雪球共用 predictions 表）
+                    exists = await db.execute(
+                        select(Prediction).where(Prediction.post_url == post["post_url"])
+                    )
+                    if exists.scalar_one_or_none():
+                        skipped += 1
+                        continue
+
+                    # 找到或创建微博博主记录
+                    blogger = None
+                    if db_bloggers:
+                        for b in db_bloggers:
+                            if b.platform_user_id == uid:
+                                blogger = b
+                                break
+
+                    if not blogger:
+                        blogger = Blogger(
+                            platform="weibo",
+                            platform_user_id=uid,
+                            username=kol.get("username", ""),
+                        )
+                        db.add(blogger)
+                        await db.flush()
+
+                    pred = Prediction(
+                        blogger_id=blogger.id,
+                        post_url=post["post_url"],
+                        post_content=post["content"],
+                        post_time=post["post_time"],
+                        raw_data=post.get("raw_data"),
+                    )
+                    db.add(pred)
+                    saved_posts += 1
+                    kol_saved += 1
+
+                snapshot["kols"].append({
+                    "username": kol.get("username", uid),
+                    "uid": uid,
+                    "fetched": len(posts),
+                    "saved": kol_saved,
+                })
+
+            await db.commit()
+        status = "success"
+    except Exception as e:
+        error_msg = str(e)
+        status = "failed"
+        logger.error(f"Weibo crawl error: {e}")
+
+    duration = time.time() - t0
+    await _write_crawl_log(db, "weibo", status, fetched, saved_posts, skipped, duration, error_msg, snapshot)
+    logger.info(f"Weibo crawl done: fetched={fetched} saved={saved_posts} skipped={skipped}")
+    return {"saved_posts": saved_posts, "skipped": skipped, "fetched": fetched}
+
+
+async def run_sentiment_crawl(db: AsyncSession) -> dict:
+    """爬取散户情绪数据（akshare 微博NLP + 东财评论），存入 retail_sentiments 表。"""
+    t0 = time.time()
+    saved = 0
+    fetched = 0
+    snapshot: dict = {"sources": {}}
+    error_msg = None
+
+    try:
+        async with SentimentCrawler() as crawler:
+            now = datetime.utcnow()
+
+            # 1. 微博舆情
+            weibo = await crawler.get_weibo_sentiment(time_period="CNHOUR12")
+            if weibo:
+                fetched += 1
+                rs = RetailSentiment(
+                    source="weibo_nlp",
+                    symbol="MARKET",
+                    sentiment_score=weibo["sentiment_score"],
+                    bullish_ratio=weibo["bullish_ratio"],
+                    bearish_ratio=weibo["bearish_ratio"],
+                    raw_data=weibo["raw_data"],
+                    captured_at=now,
+                )
+                db.add(rs)
+                saved += 1
+                snapshot["sources"]["weibo_nlp"] = {
+                    "score": weibo["sentiment_score"],
+                    "bullish": weibo["bullish_ratio"],
+                }
+
+            # 2. 东财评论
+            em = await crawler.get_em_comment_sentiment()
+            if em:
+                fetched += 1
+                rs = RetailSentiment(
+                    source="eastmoney_comment",
+                    symbol="MARKET",
+                    sentiment_score=em["sentiment_score"],
+                    bullish_ratio=em["bullish_ratio"],
+                    bearish_ratio=em["bearish_ratio"],
+                    raw_data=em["raw_data"],
+                    captured_at=now,
+                )
+                db.add(rs)
+                saved += 1
+                snapshot["sources"]["eastmoney_comment"] = {
+                    "score": em["sentiment_score"],
+                    "bullish": em["bullish_ratio"],
+                }
+
+            await db.commit()
+        status = "success" if saved > 0 else "partial"
+    except Exception as e:
+        error_msg = str(e)
+        status = "failed"
+        logger.error(f"Sentiment crawl error: {e}")
+
+    duration = time.time() - t0
+    await _write_crawl_log(db, "sentiment", status, fetched, saved, 0, duration, error_msg, snapshot)
+    logger.info(f"Sentiment crawl done: fetched={fetched} saved={saved}")
+    return {"saved": saved, "fetched": fetched, "sources": snapshot.get("sources", {})}
 
 
 async def run_signal_feedback(db: AsyncSession) -> dict:

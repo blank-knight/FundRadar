@@ -37,6 +37,26 @@ async def job_xueqiu_crawl():
     logger.info(f"[scheduler] xueqiu: crawl={crawl_result} parse={parse_result}")
 
 
+async def job_weibo_crawl():
+    """爬取微博大V帖子 + LLM 解析预测方向。"""
+    from app.core.database import AsyncSessionLocal
+    from app.crawler.orchestrator import run_weibo_crawl
+    from app.analyzer.prediction_parser import parse_unparsed_predictions
+    async with AsyncSessionLocal() as db:
+        crawl_result = await run_weibo_crawl(db)
+        parse_result = await parse_unparsed_predictions(db)
+    logger.info(f"[scheduler] weibo: crawl={crawl_result} parse={parse_result}")
+
+
+async def job_sentiment_crawl():
+    """爬取散户情绪数据（akshare 微博NLP + 东财评论）。"""
+    from app.core.database import AsyncSessionLocal
+    from app.crawler.orchestrator import run_sentiment_crawl
+    async with AsyncSessionLocal() as db:
+        result = await run_sentiment_crawl(db)
+    logger.info(f"[scheduler] sentiment: {result}")
+
+
 async def job_news_crawl():
     """抓取财经新闻 + LLM 情绪分析。"""
     from app.core.database import AsyncSessionLocal

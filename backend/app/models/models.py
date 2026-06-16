@@ -218,6 +218,7 @@ class DailySignal(Base):
     # Signal components
     blogger_consensus_score: Mapped[float] = mapped_column(Float, nullable=False)  # -1 to 1
     news_sentiment_score: Mapped[float] = mapped_column(Float, nullable=False)  # -1 to 1
+    retail_sentiment_score: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)  # -1 to 1, 散户情绪
 
     # Final signal
     final_signal: Mapped[str] = mapped_column(String(20), nullable=False)  # strong_buy, buy, hold, sell, strong_sell
@@ -435,3 +436,26 @@ class SignalReview(Base):
 
     # 是否已推送给用户
     is_pushed: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+
+
+class RetailSentiment(Base):
+    """散户情绪数据快照 — 每次爬取存一条。"""
+    __tablename__ = "retail_sentiments"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+
+    # 来源
+    source: Mapped[str] = mapped_column(String(30), nullable=False, index=True)  # weibo_nlp / eastmoney_comment
+    symbol: Mapped[str] = mapped_column(String(20), nullable=False, index=True)  # 000300 / MARKET（全市场聚合）
+
+    # 情绪数据（统一标准化）
+    sentiment_score: Mapped[float] = mapped_column(Float, nullable=False)  # -1 到 1
+    bullish_ratio: Mapped[Optional[float]] = mapped_column(Float, nullable=True)  # 0-1
+    bearish_ratio: Mapped[Optional[float]] = mapped_column(Float, nullable=True)  # 0-1
+
+    # 原始数据
+    raw_data: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+
+    # 时间
+    captured_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)

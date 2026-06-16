@@ -1,4 +1,9 @@
-"""Xueqiu (雪球) crawler — scrapes financial blogger posts."""
+"""Xueqiu (雪球) crawler — scrapes financial blogger posts.
+
+WAF bypass: Uses Playwright headless browser to pass Aliyun WAF JS challenge,
+extracts cookies, then injects into httpx for normal API calls.
+Falls back to manual XUEQIU_COOKIE env var if Playwright unavailable.
+"""
 import logging
 from datetime import datetime, timezone
 from typing import Optional
@@ -19,7 +24,7 @@ XUEQIU_HEADERS = {
     "Accept": "application/json, text/plain, */*",
     "Accept-Language": "zh-CN,zh;q=0.9",
     "Referer": "https://xueqiu.com/",
-    "Origin": "https://xueqiu.com",
+    "Origin": "https://xueqiu.cn",
 }
 
 # Known finance KOL user IDs on Xueqiu (platform_user_id)
@@ -32,20 +37,86 @@ DEFAULT_BLOGGERS = [
 ]
 
 
-class XueqiuCrawler(BaseCrawler):
-    """Crawl Xueqiu blogger posts for prediction extraction."""
+async def get_xueqiu_cookies_via_playwright(url: str = "https://xueqiu.com/") -> dict:
+    """Use Playwright to bypass Aliyun WAF and extract cookies.
 
-    def __init__(self, cookie: str = "", **kwargs):
+    Returns dict of cookies suitable for httpx.
+    Raises ImportError if playwright not installed, RuntimeError on failure.
+    """
+    from playwright.async_api import async_playwright
+
+    async with async_playwright() as p:
+        browser = await p.chromium.launch(headless=True)
+        context = await browser.new_context()
+        page = await context.new_page()
+
+        await page.goto(url, wait_until="networkidle", timeout=30000)
+
+        # Wait for WAF JS challenge to resolve
+        # The page will reload after WAF passes
+        await page.wait_for_timeout(3000)
+
+        cookies = await context.cookies()
+        await browser.close()
+
+    cookie_dict = {}
+    for c in cookies:
+        cookie_dict[c["name"]] = c["value"]
+
+    if "xq_a_token" not in cookie_dict:
+        raise RuntimeError(f"Playwright WAF bypass failed: no xq_a_token in cookies. Got: {list(cookie_dict.keys())}")
+
+    logger.info(f"Playwright WAF bypass success, got {len(cookie_dict)} cookies (xq_a_token present)")
+    return cookie_dict
+
+
+def build_cookie_string(cookies: dict) -> str:
+    """Convert cookie dict to header string."""
+    return "; ".join(f"{k}={v}" for k, v in cookies.items())
+
+
+class XueqiuCrawler(BaseCrawler):
+    """Crawl Xueqiu blogger posts for prediction extraction.
+
+    Cookie acquisition order:
+    1. Manual cookie passed via constructor
+    2. Playwright WAF bypass (preferred for automated runs)
+    3. Fallback: visit homepage for basic session cookie (may not pass WAF)
+    """
+
+    def __init__(self, cookie: str = "", use_playwright: bool = True, **kwargs):
         super().__init__(rate_limit_delay=2.0, **kwargs)
         self.cookie = cookie
+        self.use_playwright = use_playwright
 
     async def __aenter__(self):
         await super().__aenter__()
         self._client.headers.update(XUEQIU_HEADERS)
+
         if self.cookie:
+            # 1. Manual cookie (highest priority)
             self._client.headers.update({"Cookie": self.cookie})
+        elif self.use_playwright:
+            # 2. Try Playwright WAF bypass
+            try:
+                cookies = await get_xueqiu_cookies_via_playwright()
+                cookie_str = build_cookie_string(cookies)
+                self._client.headers.update({"Cookie": cookie_str})
+                logger.info("Xueqiu using Playwright-extracted cookies")
+            except ImportError:
+                logger.warning("Playwright not installed, trying homepage cookie fallback")
+                try:
+                    await self._client.get("https://xueqiu.com/", follow_redirects=True)
+                except Exception:
+                    pass
+            except Exception as e:
+                logger.warning(f"Playwright WAF bypass failed: {e}, falling back to homepage cookie")
+                try:
+                    await self._client.get("https://xueqiu.com/", follow_redirects=True)
+                except Exception:
+                    pass
         else:
-            # 先访问首页获取 session cookie，雪球 API 必须有 cookie 才能访问
+            # 3. Simple homepage visit
             try:
                 await self._client.get("https://xueqiu.com/", follow_redirects=True)
             except Exception:
