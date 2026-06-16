@@ -30,10 +30,10 @@ async def job_xueqiu_crawl():
     """爬取雪球博主帖子 + LLM 解析预测方向。"""
     from app.core.database import AsyncSessionLocal
     from app.crawler.orchestrator import run_xueqiu_crawl
-    from app.analyzer.prediction_parser import parse_unanalyzed_predictions
+    from app.analyzer.prediction_parser import parse_unparsed_predictions
     async with AsyncSessionLocal() as db:
         crawl_result = await run_xueqiu_crawl(db)
-        parse_result = await parse_unanalyzed_predictions(db)
+        parse_result = await parse_unparsed_predictions(db)
     logger.info(f"[scheduler] xueqiu: crawl={crawl_result} parse={parse_result}")
 
 

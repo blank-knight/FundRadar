@@ -86,7 +86,7 @@ async def run_xueqiu_crawl(db: AsyncSession) -> dict:
                     blogger_saved += 1
 
                 snapshot["bloggers"].append({
-                    "username": blogger_info["username"],
+                    "username": blogger.name or blogger.platform_user_id,
                     "uid": uid,
                     "fetched": len(posts),
                     "saved": blogger_saved,

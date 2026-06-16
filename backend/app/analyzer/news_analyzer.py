@@ -76,8 +76,8 @@ async def analyze_unanalyzed_news(db: AsyncSession, hours: int = 24) -> dict:
     if not news_list:
         return {"analyzed": 0}
 
-    # 分批处理，每批20条
-    batch_size = 20
+    # 分批处理，每批5条（避免LLM超时）
+    batch_size = 5
     total_analyzed = 0
 
     for i in range(0, len(news_list), batch_size):

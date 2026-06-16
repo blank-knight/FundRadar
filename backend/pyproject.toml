@@ -23,3 +23,10 @@ dependencies = [
 [build-system]
 requires = ["setuptools>=68.0"]
 build-backend = "setuptools.build_meta"
+
+[tool.pytest.ini_options]
+markers = [
+    "network: tests that require internet connection",
+    "llm: tests that require real LLM API access",
+]
+asyncio_mode = "auto"

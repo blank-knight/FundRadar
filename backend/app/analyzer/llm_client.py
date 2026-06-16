@@ -104,8 +104,21 @@ def _strip_fences(text: str) -> str:
         if inner:
             text = "\n".join(inner).strip()
 
-    # 提取第一个 { ... } 或 [ ... ]（防止 LLM 在 JSON 前后加说明文字）
-    for start_char, end_char in [('{', '}'), ('[', ']')]:
+    # 智能提取 JSON：先找到第一个 [ 或 {，匹配对应的闭合
+    stripped = text.strip()
+    if stripped.startswith("["):
+        start = 0
+        end = stripped.rfind("]")
+        if end > start:
+            return stripped[start:end + 1]
+    if stripped.startswith("{"):
+        start = 0
+        end = stripped.rfind("}")
+        if end > start:
+            return stripped[start:end + 1]
+
+    # Fallback: 在文本中搜索
+    for start_char, end_char in [('[', ']'), ('{', '}')]:
         start = text.find(start_char)
         end = text.rfind(end_char)
         if start != -1 and end != -1 and end > start:
@@ -125,8 +138,8 @@ async def llm_json(system: str, user: str, retries: int = 2) -> dict | list | No
     """调用 LLM，返回解析后的 JSON（dict 或 list）。失败返回 None。"""
     for attempt in range(retries + 1):
         try:
-            url, headers, body = _build_request(system, user, max_tokens=1024)
-            async with httpx.AsyncClient(timeout=60) as client:
+            url, headers, body = _build_request(system, user, max_tokens=2048)
+            async with httpx.AsyncClient(timeout=httpx.Timeout(120.0, connect=10.0)) as client:
                 resp = await client.post(url, headers=headers, json=body)
                 resp.raise_for_status()
                 text = _extract_text(resp.json())
@@ -156,7 +169,7 @@ async def llm_text(system: str, user: str) -> str | None:
     """调用 LLM，返回纯文本。失败返回 None。"""
     try:
         url, headers, body = _build_request(system, user, max_tokens=512)
-        async with httpx.AsyncClient(timeout=60) as client:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(120.0, connect=10.0)) as client:
             resp = await client.post(url, headers=headers, json=body)
             resp.raise_for_status()
             return _extract_text(resp.json())
