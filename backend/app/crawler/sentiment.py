@@ -75,7 +75,13 @@ class SentimentCrawler(BaseCrawler):
         """
         import akshare as ak
         try:
-            df = ak.stock_js_weibo_report(time_period=time_period)
+            # jin10 底层是同步 requests，在 WSL+Clash 下 SSL EOF。
+            # 用线程池跑 + 15s 超时，超时返回 None 不阻塞。
+            import asyncio
+            df = await asyncio.wait_for(
+                asyncio.to_thread(ak.stock_js_weibo_report, time_period=time_period),
+                timeout=15,
+            )
             if df is None or df.empty:
                 logger.warning("微博舆情报告为空")
                 return None
@@ -106,6 +112,9 @@ class SentimentCrawler(BaseCrawler):
                 "raw_count": len(rates),
                 "raw_data": {"top_stocks": top_stocks, "time_period": time_period},
             }
+        except asyncio.TimeoutError:
+            logger.warning("微博舆情爬取超时(15s)，跳过 jin10 数据源")
+            return None
         except Exception as e:
             logger.error(f"微博舆情爬取失败: {e}")
             return None
@@ -122,7 +131,11 @@ class SentimentCrawler(BaseCrawler):
         """
         import akshare as ak
         try:
-            df = ak.stock_comment_em()
+            import asyncio
+            df = await asyncio.wait_for(
+                asyncio.to_thread(ak.stock_comment_em),
+                timeout=20,
+            )
             if df is None or df.empty:
                 logger.warning("东财评论数据为空")
                 return None

@@ -115,7 +115,12 @@ async def tencent_quote(client: httpx.AsyncClient, codes: list[str]) -> dict[str
     prefixed = []
     for c in codes:
         c = c.strip()
-        if c.startswith(("6", "9")):
+        # 指数代码特殊处理：000xxx(上证指数) / 399xxx(深证指数)
+        if c.startswith("000") and len(c) == 6:
+            prefixed.append(f"sh{c}")    # 000300=沪深300, 000016=上证50
+        elif c.startswith("399"):
+            prefixed.append(f"sz{c}")    # 399006=创业板指, 399001=深证成指
+        elif c.startswith(("6", "9")):
             prefixed.append(f"sh{c}")
         elif c.startswith("8"):
             prefixed.append(f"bj{c}")
@@ -311,8 +316,14 @@ async def industry_comparison(
 ) -> dict:
     """全行业涨跌幅排名（东财行业板块，~100个行业）。
 
+    数据源优先级:
+      1. 东财 push2 clist (主源)
+      2. 东财 push2 fallback (换 endpoint + 参数微调)
+      3. akshare stock_board_industry_name_em (备用，需 sync→async)
+
     Returns: {top: [...], bottom: [...], total: int, avg_change_pct: float}
     """
+    # ── 主源：东财 push2 clist ──
     url = "https://push2.eastmoney.com/api/qt/clist/get"
     params = {
         "pn": "1", "pz": "100", "po": "1", "np": "1",
@@ -321,12 +332,56 @@ async def industry_comparison(
         "fields": "f2,f3,f4,f12,f13,f14,f104,f105,f128,f136,f140,f141,f207",
     }
     d = await em_get(client, url, params=params)
-    if not d:
-        return {"top": [], "bottom": [], "total": 0, "avg_change_pct": 0}
+    items = (d or {}).get("data", {}).get("diff") if d else None
 
-    items = (d.get("data") or {}).get("diff") or []
+    # ── 备用源1：push2 换参数重试 ──
     if not items:
-        return {"top": [], "bottom": [], "total": 0, "avg_change_pct": 0}
+        logger.warning("industry_comparison: push2 主源失败，尝试备用参数")
+        params_fallback = {
+            "pn": "1", "pz": "100", "po": "1", "np": "1",
+            "fltt": "2",
+            "fs": "m:90+t:2+f:!50",
+            "fields": "f3,f12,f14",
+        }
+        d2 = await em_get(client, url, params=params_fallback)
+        items = (d2 or {}).get("data", {}).get("diff") if d2 else None
+
+    # ── 备用源2：akshare 同花顺/东财板块 ──
+    if not items:
+        logger.warning("industry_comparison: push2 全部失败，用 akshare 备用")
+        try:
+            import asyncio
+            import akshare as ak
+            df = await asyncio.wait_for(
+                asyncio.to_thread(ak.stock_board_industry_name_em),
+                timeout=15,
+            )
+            if df is not None and not df.empty:
+                # akshare 返回列: 排名, 板块名称, 最新价, 涨跌额, 涨跌幅, ...
+                rows = []
+                for _, row in df.head(50).iterrows():
+                    rows.append({
+                        "rank": len(rows) + 1,
+                        "name": str(row.get("板块名称", "")),
+                        "change_pct": float(row.get("涨跌幅", 0) or 0),
+                        "code": str(row.get("板块代码", "")),
+                        "up_count": 0,
+                        "down_count": 0,
+                    })
+                avg = round(sum(r["change_pct"] for r in rows) / len(rows), 2) if rows else 0
+                return {
+                    "top": rows[:top_n],
+                    "bottom": rows[-top_n:] if len(rows) > top_n else rows,
+                    "total": len(rows),
+                    "avg_change_pct": avg,
+                    "source": "akshare_fallback",
+                }
+        except Exception as e:
+            logger.warning(f"industry_comparison akshare fallback failed: {e}")
+
+    if not items:
+        logger.error("industry_comparison: 所有数据源失败")
+        return {"top": [], "bottom": [], "total": 0, "avg_change_pct": 0, "source": "failed"}
 
     rows = []
     for i, item in enumerate(items):
@@ -347,6 +402,7 @@ async def industry_comparison(
         "bottom": rows[-top_n:],
         "total": len(rows),
         "avg_change_pct": avg,
+        "source": "eastmoney_push2",
     }
 
 
