@@ -172,7 +172,7 @@ export default function PortfolioPage() {
   const totalPct     = totalCost > 0 ? (totalProfit / totalCost * 100) : 0
 
   return (
-    <div className="p-3 md:p-6 h-full flex flex-col overflow-auto">
+    <div className="p-6 h-full flex flex-col overflow-auto">
       <div className="flex items-start justify-between mb-5">
         <div>
           <h1 className="text-2xl font-bold text-white mb-1">我的持仓</h1>
@@ -192,7 +192,7 @@ export default function PortfolioPage() {
       </div>
 
       {/* 总览卡片 */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-5">
+      <div className="grid grid-cols-4 gap-4 mb-5">
         <div className="bg-[#0d1220] border border-[#1f2937] rounded-xl p-4">
           <p className="text-gray-400 text-xs mb-1 flex items-center gap-1"><Wallet size={12}/>总持仓</p>
           <p className="text-white text-xl font-bold">¥{totalCurrent.toLocaleString('zh-CN', {maximumFractionDigits:0})}</p>

@@ -152,7 +152,7 @@ export default function LearnPage() {
   const filtered = LESSONS.filter(l => filter === '全部' || l.tag === filter)
 
   return (
-    <div className="p-3 md:p-6 h-full flex flex-col overflow-auto">
+    <div className="p-6 h-full flex flex-col overflow-auto">
       <div className="mb-5">
         <h1 className="text-2xl font-bold text-white mb-1">新手教学</h1>
         <p className="text-gray-400 text-sm">从零开始学基金，每篇 3-5 分钟，看完就能上手</p>

@@ -74,7 +74,7 @@ function ScoreBar({ score, label }: { score: number | null; label: string }) {
   return (
     <div className="flex items-center gap-2">
       <span className="text-xs text-gray-400 w-14 shrink-0">{label}</span>
-      <div className="flex-1 h-1.5 max-w-[80px] md:max-w-[80px] w-full bg-gray-700 rounded-full overflow-hidden">
+      <div className="flex-1 h-1.5 max-w-[80px] bg-gray-700 rounded-full overflow-hidden">
         <div className={clsx('h-full rounded-full transition-all', color)} style={{ width: `${pct}%` }} />
       </div>
       <span className={clsx('text-xs font-mono w-10 text-right shrink-0', score === null ? 'text-gray-600' : score > 0 ? 'text-green-400' : 'text-red-400')}>
@@ -128,9 +128,9 @@ export default function TodaySignals() {
   })
 
   return (
-    <div className="p-3 md:p-6 flex flex-col min-h-0 overflow-auto">
+    <div className="p-6 flex flex-col min-h-0 overflow-auto">
       {/* 1. 信号总览 */}
-      <div className="grid grid-cols-3 gap-2 md:gap-4 mb-3 md:mb-5">
+      <div className="grid grid-cols-3 gap-4 mb-5">
         <div className="bg-[#0d1220] border border-[#1f2937] rounded-xl p-4">
           <p className="text-gray-400 text-xs mb-1">今日信号</p>
           <p className="text-white text-2xl font-bold">{signals.length || '—'}</p>
@@ -156,7 +156,7 @@ export default function TodaySignals() {
             <BarChart3 size={14} className="text-[#00d4aa]" />
             信号维度评分 — {latest.target_name} ({fmtDate(latest.signal_date)})
           </h3>
-          <div className="grid grid-cols-2 md:flex md:flex-wrap gap-x-4 md:gap-x-6 gap-y-2">
+          <div className="flex flex-wrap gap-x-6 gap-y-2">
             <ScoreBar score={latest.blogger_consensus_score} label="博主共识" />
             <ScoreBar score={latest.news_sentiment_score} label="新闻情绪" />
             <ScoreBar score={latest.retail_sentiment_score} label="散户情绪" />
@@ -269,10 +269,9 @@ export default function TodaySignals() {
         {filteredSignals.length === 0 ? (
           <div className="text-center text-gray-500 py-8 text-sm">暂无信号数据</div>
         ) : filteredSignals.map((sig, i) => (
-          <div key={i} className="bg-[#0d1220] border border-[#1f2937] rounded-xl p-3 md:p-4 hover:border-[#374151] transition flex items-center gap-3 md:gap-4">
-            <div className={clsx('w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center flex-shrink-0', sig.final_signal === 'buy' ? 'bg-[#14532d]' : sig.final_signal === 'sell' ? 'bg-[#7f1d1d]' : 'bg-[#374151]')}>
-              {sig.final_signal === 'buy' ? <TrendingUp size={20} className="md:hidden text-[#4ade80]" /> : sig.final_signal === 'sell' ? <TrendingDown size={20} className="md:hidden text-[#f87171]" /> : <div className="w-5 h-5 md:hidden rounded-full bg-gray-500" />}
-              {sig.final_signal === 'buy' ? <TrendingUp size={24} className="hidden md:block text-[#4ade80]" /> : sig.final_signal === 'sell' ? <TrendingDown size={24} className="hidden md:block text-[#f87171]" /> : <div className="hidden md:block w-6 h-6 rounded-full bg-gray-500" />}
+          <div key={i} className="bg-[#0d1220] border border-[#1f2937] rounded-xl p-4 hover:border-[#374151] transition flex items-center gap-4">
+            <div className={clsx('w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0', sig.final_signal === 'buy' ? 'bg-[#14532d]' : sig.final_signal === 'sell' ? 'bg-[#7f1d1d]' : 'bg-[#374151]')}>
+              {sig.final_signal === 'buy' ? <TrendingUp size={24} className="text-[#4ade80]" /> : sig.final_signal === 'sell' ? <TrendingDown size={24} className="text-[#f87171]" /> : <div className="w-6 h-6 rounded-full bg-gray-500" />}
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-1">

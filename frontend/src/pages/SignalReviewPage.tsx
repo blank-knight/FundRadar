@@ -127,7 +127,7 @@ export default function SignalReviewPage() {
   useEffect(() => { load() }, [])
 
   return (
-    <div className="p-3 md:p-6 h-full flex flex-col overflow-auto">
+    <div className="p-6 h-full flex flex-col overflow-auto">
       <div className="flex items-start justify-between mb-5">
         <div>
           <h1 className="text-2xl font-bold text-white mb-1">信号复盘报告</h1>
