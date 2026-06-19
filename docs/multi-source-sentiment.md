@@ -2,8 +2,15 @@
 
 **模块名称:** Multi-Source Sentiment Engine
 **创建时间:** 2026-06-16
-**状态:** 开发中
-**关联版本:** Phase 5（Post-MVP 增强）
+**状态:** 已上线 (2026-06-16) → 已被 V2 量化增强取代 (2026-06-17) → 博主来源已从雪球迁移至微博+东财 (2026-06-17)
+**关联版本:** Phase 5（五维信号系统）
+
+**⚠️ 重要变更 (2026-06-17):**
+- 雪球已彻底废弃（WAF不可用+Playwright成本高）
+- 博主数据源改为: 微博大V(7位) + 东财分析师TOP5(akshare)
+- 信号权重: 三维→五维，参见 [quant-data-integration.md](./quant-data-integration.md)
+- 散户情绪是第三方预分析结果，非我们自己做NLP
+- 参见 [database-schema.md](./database-schema.md) 查看完整数据库结构
 
 ---
 

@@ -57,6 +57,15 @@ async def job_sentiment_crawl():
     logger.info(f"[scheduler] sentiment: {result}")
 
 
+async def job_quant_crawl():
+    """采集量化数据快照（北向资金/行业轮动/指数资金流/龙虎榜/估值）。"""
+    from app.core.database import AsyncSessionLocal
+    from app.crawler.orchestrator import run_quant_crawl
+    async with AsyncSessionLocal() as db:
+        result = await run_quant_crawl(db)
+    logger.info(f"[scheduler] quant: {result}")
+
+
 async def job_news_crawl():
     """抓取财经新闻 + LLM 情绪分析。"""
     from app.core.database import AsyncSessionLocal

@@ -100,40 +100,68 @@ class TestWeiboCrawler:
 
 
 class TestWeightedScore:
-    """三维加权计算测试。"""
+    """加权计算测试 — V1 三维 + V2 五维。"""
 
     def test_all_positive(self):
-        from app.analyzer.signal_generator import _calc_weighted_score
-        score = _calc_weighted_score(0.8, 0.6, 0.4, 0.45, 0.30, 0.25)
+        from app.analyzer.signal_generator import _calc_v3_score
+        score = _calc_v3_score(0.8, 0.6, 0.4, 0.45, 0.30, 0.25)
         assert score > 0
         assert abs(score - (0.8*0.45 + 0.6*0.30 + 0.4*0.25)) < 0.001
 
     def test_all_negative(self):
-        from app.analyzer.signal_generator import _calc_weighted_score
-        score = _calc_weighted_score(-0.8, -0.6, -0.4, 0.45, 0.30, 0.25)
+        from app.analyzer.signal_generator import _calc_v3_score
+        score = _calc_v3_score(-0.8, -0.6, -0.4, 0.45, 0.30, 0.25)
         assert score < 0
 
     def test_mixed_signals(self):
-        from app.analyzer.signal_generator import _calc_weighted_score
-        # 博主看多 + 新闻中性 + 散户看空
-        score = _calc_weighted_score(0.5, 0.0, -0.3, 0.45, 0.30, 0.25)
-        # 0.5*0.45 + 0 - 0.3*0.25 = 0.225 - 0.075 = 0.15
+        from app.analyzer.signal_generator import _calc_v3_score
+        score = _calc_v3_score(0.5, 0.0, -0.3, 0.45, 0.30, 0.25)
         assert abs(score - 0.15) < 0.01
 
     def test_extreme_bullish(self):
-        from app.analyzer.signal_generator import _calc_weighted_score
-        score = _calc_weighted_score(1.0, 1.0, 1.0, 0.45, 0.30, 0.25)
+        from app.analyzer.signal_generator import _calc_v3_score
+        score = _calc_v3_score(1.0, 1.0, 1.0, 0.45, 0.30, 0.25)
         assert abs(score - 1.0) < 0.001
 
     def test_extreme_bearish(self):
-        from app.analyzer.signal_generator import _calc_weighted_score
-        score = _calc_weighted_score(-1.0, -1.0, -1.0, 0.45, 0.30, 0.25)
+        from app.analyzer.signal_generator import _calc_v3_score
+        score = _calc_v3_score(-1.0, -1.0, -1.0, 0.45, 0.30, 0.25)
         assert abs(score - (-1.0)) < 0.001
 
-    def test_weights_sum_to_one(self):
-        """权重之和 = 1.0。"""
-        from app.analyzer.signal_generator import W_BLOGGER, W_NEWS, W_RETAIL
-        assert abs((W_BLOGGER + W_NEWS + W_RETAIL) - 1.0) < 0.001
+    def test_v1_weights_sum_to_one(self):
+        """V1 三维权重之和 = 1.0。"""
+        from app.analyzer.signal_generator import W_BLOGGER_V1, W_NEWS_V1, W_RETAIL_V1
+        assert abs((W_BLOGGER_V1 + W_NEWS_V1 + W_RETAIL_V1) - 1.0) < 0.001
+
+    def test_v2_weights_sum_to_one(self):
+        """V2 五维权重之和 = 1.0。"""
+        from app.analyzer.signal_generator import (
+            W_BLOGGER_V2, W_NEWS_V2, W_RETAIL_V2,
+            W_FUND_FLOW_V2, W_INDUSTRY_V2
+        )
+        total = W_BLOGGER_V2 + W_NEWS_V2 + W_RETAIL_V2 + W_FUND_FLOW_V2 + W_INDUSTRY_V2
+        assert abs(total - 1.0) < 0.001
+
+    def test_v5_all_quant(self):
+        """V5 全维度数据可用。"""
+        from app.analyzer.signal_generator import _calc_v5_score
+        score, w = _calc_v5_score(0.5, 0.3, -0.2, 0.6, 0.4)
+        assert w == "v5_5dim"
+        assert -1 <= score <= 1
+
+    def test_v5_partial_quant(self):
+        """V5 部分量化维度缺失 — 权重重分配。"""
+        from app.analyzer.signal_generator import _calc_v5_score
+        score, w = _calc_v5_score(0.5, 0.3, -0.2, None, 0.4)
+        assert w == "v5_5dim"
+        assert -1 <= score <= 1
+
+    def test_v5_no_quant_fallback(self):
+        """V5 量化全缺失 → 回退 V1。"""
+        from app.analyzer.signal_generator import _calc_v5_score
+        score, w = _calc_v5_score(0.5, 0.3, -0.2, None, None)
+        assert w == "v1_fallback"
+        assert -1 <= score <= 1
 
 
 class TestContrarianMode:

@@ -180,7 +180,7 @@ async def _parse_batch(db: AsyncSession, predictions: list[Prediction]) -> int:
 
         item = results_list[idx]
         is_pred = bool(item.get("is_prediction", False))
-        confidence = float(item.get("confidence", 0.0))
+        confidence = float(item.get("confidence") or 0.0)
 
         if is_pred and confidence < 0.6:
             is_pred = False

@@ -13,8 +13,9 @@ class Settings(BaseSettings):
     # LLM API
     LLM_API_KEY: str
     LLM_BASE_URL: str = "https://aicoding.0011.ai"
-    LLM_MODEL: str = "claude-sonnet-4-20250514"
-    LLM_API_FORMAT: str = "anthropic"  # anthropic 或 openai
+    LLM_MODEL: str = "glm-5-turbo"
+    LLM_API_FORMAT: str = "openai"  # anthropic 或 openai
+    LLM_FALLBACK_MODELS: str = ""  # 逗号分隔的降级模型列表，如 glm-5-turbo,glm-4-flash
 
     # Telegram Bot
     TELEGRAM_BOT_TOKEN: str

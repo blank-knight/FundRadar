@@ -19,6 +19,7 @@ from app.scheduler.jobs import (
     job_push_signal,
     job_signal_feedback,
     job_update_nav,
+    job_quant_crawl,
 )
 
 logger = logging.getLogger(__name__)
@@ -89,6 +90,17 @@ def setup_scheduler() -> AsyncIOScheduler:
         name="行情数据（收盘）",
         replace_existing=True,
         misfire_grace_time=300,
+    )
+
+    # 15:35 — 采集量化数据（北向/资金流/行业轮动/龙虎榜/估值）
+    # 必须在 16:00 信号生成前完成
+    scheduler.add_job(
+        job_quant_crawl,
+        CronTrigger(hour=15, minute=35, timezone=TIMEZONE),
+        id="quant_crawl",
+        name="量化数据采集",
+        replace_existing=True,
+        misfire_grace_time=600,
     )
 
     # 15:35 — 验证博主预测

@@ -2,13 +2,15 @@
 
 AI 驱动的 A 股基金投资信号平台。
 
-从财经博主预测和新闻情绪中提取信号，结合市场数据生成每日基金操作建议。
+从博主预测、新闻情绪、散户情绪和量化数据中提取信号，生成每日基金操作建议。
 
 ## 功能
 
-- **博主评分** -- 爬取雪球财经博主的预测，与 T+1 实际走势比对，用指数衰减算法计算准确率排名
+- **博主评分** -- 爬取雪球/微博财经博主的预测，与 T+1 实际走势比对，用指数衰减算法计算准确率排名
 - **新闻情绪分析** -- 爬取财经新闻，LLM 分析情绪偏多/偏空
-- **信号生成** -- 60% 博主共识 + 40% 新闻情绪，生成每日买入/持有/卖出信号
+- **散户情绪** -- akshare 微博舆情 NLP + 东财评论，含反向因子（极度看多时减弱买入信号）
+- **量化数据** -- 北向资金流向、主力资金流、行业轮动、龙虎榜、PE/PB 估值（[a-stock-data](https://github.com/simonlin1212/a-stock-data) 接入）
+- **信号生成** -- 5 维加权：博主 25% + 新闻 20% + 散户 15% + 资金面 25% + 行业动能 15%（量化数据不可用时自动回退 3 维情绪权重）
 - **持仓管理** -- 添加关注基金，批量 LLM 分析持仓建议
 - **Telegram 推送** -- 信号实时推送到 Telegram，支持绑定/解绑
 - **新手教学** -- 基金投资入门内容模块
@@ -21,7 +23,7 @@ AI 驱动的 A 股基金投资信号平台。
 | 后端 | Python 3.11+ / FastAPI / SQLAlchemy 2.0 / Alembic |
 | 数据库 | PostgreSQL 15 / Redis 7 |
 | 前端 | React 18 / TypeScript / Tailwind CSS / Recharts |
-| 数据源 | 雪球(博主) / 财经新闻 / akshare(行情) |
+| 数据源 | 雪球(博主) / 财经新闻 / 微博(KOL) / akshare(散户情绪+行情) / 东财+腾讯(量化数据) |
 | AI | LLM API (支持 OpenAI/Anthropic 格式) |
 | 部署 | Docker Compose |
 
@@ -34,9 +36,9 @@ fund-radar/
 │   │   ├── analyzer/      # LLM 分析：信号生成、博主评分、新闻情绪
 │   │   ├── api/routes/    # REST API：认证、博主、信号、持仓、订单、Telegram
 │   │   ├── core/          # 配置、数据库、安全、订阅计划
-│   │   ├── crawler/       # 爬虫：雪球、新闻、基金净值
+│   │   ├── crawler/       # 爬虫：雪球、微博、新闻、基金净值、量化数据(astock)
 │   │   ├── models/        # SQLAlchemy 数据模型
-│   │   ├── scheduler/     # APScheduler 定时任务
+│   │   ├── scheduler/     # APScheduler 定时任务（12个）
 │   │   ├── schemas/       # Pydantic 请求/响应模型
 │   │   └── services/      # 业务逻辑：推送、复盘、Telegram bot
 │   ├── alembic/           # 数据库迁移

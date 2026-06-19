@@ -215,10 +215,14 @@ class DailySignal(Base):
     target_symbol: Mapped[str] = mapped_column(String(20), nullable=False)  # Default: 000300
     target_name: Mapped[str] = mapped_column(String(50), nullable=False)
 
-    # Signal components
+    # Signal components — 情绪面 (V1)
     blogger_consensus_score: Mapped[float] = mapped_column(Float, nullable=False)  # -1 to 1
     news_sentiment_score: Mapped[float] = mapped_column(Float, nullable=False)  # -1 to 1
-    retail_sentiment_score: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)  # -1 to 1, 散户情绪
+    retail_sentiment_score: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)  # -1 to 1
+
+    # Signal components — 量化面 (V2: a-stock-data)
+    fund_flow_score: Mapped[Optional[float]] = mapped_column(Float, nullable=True)  # -1 to 1, 北向+主力资金
+    industry_momentum_score: Mapped[Optional[float]] = mapped_column(Float, nullable=True)  # -1 to 1, 行业动能
 
     # Final signal
     final_signal: Mapped[str] = mapped_column(String(20), nullable=False)  # strong_buy, buy, hold, sell, strong_sell
@@ -459,3 +463,61 @@ class RetailSentiment(Base):
     # 时间
     captured_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+
+
+# ════════════════════════════════════════════════════════════════════
+# 量化数据层 (V2 — a-stock-data 接入)
+# ════════════════════════════════════════════════════════════════════
+
+class QuantSnapshot(Base):
+    """量化数据快照 — 每日采集北向资金 / 行业轮动 / 指数资金流 / 龙虎榜。
+
+    数据来源: a-stock-data (https://github.com/simonlin1212/a-stock-data)
+    采集器: app/crawler/astock.py
+    """
+    __tablename__ = "quant_snapshots"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+
+    # 快照日期
+    snapshot_date: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
+
+    # ── 北向资金（亿元）──
+    northbound_hgt: Mapped[Optional[float]] = mapped_column(Float, nullable=True)  # 沪股通净流入
+    northbound_sgt: Mapped[Optional[float]] = mapped_column(Float, nullable=True)  # 深股通净流入
+    northbound_total: Mapped[Optional[float]] = mapped_column(Float, nullable=True)  # 合计
+
+    # ── 行业轮动 ──
+    industry_avg_change_pct: Mapped[Optional[float]] = mapped_column(Float, nullable=True)  # 全行业平均涨跌幅
+    industry_top_json: Mapped[Optional[list]] = mapped_column(JSON, nullable=True)  # 涨幅前5行业
+    industry_bottom_json: Mapped[Optional[list]] = mapped_column(JSON, nullable=True)  # 跌幅前5行业
+
+    # ── 指数资金流（最近10日主力净流入，单位：亿元）──
+    fund_flow_000300: Mapped[Optional[float]] = mapped_column(Float, nullable=True)  # 沪深300
+    fund_flow_399006: Mapped[Optional[float]] = mapped_column(Float, nullable=True)  # 创业板指
+    fund_flow_000016: Mapped[Optional[float]] = mapped_column(Float, nullable=True)  # 上证50
+    fund_flow_detail: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)  # 完整明细（含日期序列）
+
+    # ── 龙虎榜 ──
+    dragon_tiger_count: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    dragon_tiger_net_buy_wan: Mapped[Optional[float]] = mapped_column(Float, nullable=True)  # 净买入合计（万元）
+    dragon_tiger_top_json: Mapped[Optional[list]] = mapped_column(JSON, nullable=True)  # 净买入前10个股
+
+    # ── 估值面（腾讯行情快照）──
+    pe_000300: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    pb_000300: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+
+    # ── 衍生指标（signal_generator 使用）──
+    # 资金面综合得分 -1~1（北向+主力资金流方向加权）
+    fund_flow_score: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    # 行业动能得分 -1~1（全行业涨跌幅 + 上涨行业占比）
+    industry_momentum_score: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+
+    # 完整原始数据（审计用）
+    raw_data: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+
+    __table_args__ = (
+        Index("idx_quant_date", "snapshot_date", unique=True),
+    )

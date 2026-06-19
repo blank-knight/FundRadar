@@ -37,10 +37,10 @@ from app.core.config import settings
 logger = logging.getLogger(__name__)
 
 
-def _build_request(system: str, user: str, max_tokens: int) -> tuple[str, dict, dict]:
+def _build_request(system: str, user: str, max_tokens: int, model: str | None = None) -> tuple[str, dict, dict]:
     """根据 LLM_API_FORMAT 构建请求 url、headers、body。"""
     fmt = settings.LLM_API_FORMAT.lower()
-    model = settings.LLM_MODEL
+    model = model or settings.LLM_MODEL
 
     if fmt == "anthropic":
         url = f"{settings.LLM_BASE_URL}/v1/messages"
@@ -134,45 +134,67 @@ def _fix_json_string_quotes(text: str) -> str:
     return text
 
 
+def _get_model_chain() -> list[str]:
+    """返回模型降级链：主模型 → fallback列表（自动去重）。"""
+    models = [settings.LLM_MODEL]
+    if settings.LLM_FALLBACK_MODELS:
+        for m in settings.LLM_FALLBACK_MODELS.split(","):
+            m = m.strip()
+            if m and m not in models:
+                models.append(m)
+    return models
+
+
 async def llm_json(system: str, user: str, retries: int = 2) -> dict | list | None:
-    """调用 LLM，返回解析后的 JSON（dict 或 list）。失败返回 None。"""
-    for attempt in range(retries + 1):
-        try:
-            url, headers, body = _build_request(system, user, max_tokens=2048)
-            async with httpx.AsyncClient(timeout=httpx.Timeout(120.0, connect=10.0)) as client:
-                resp = await client.post(url, headers=headers, json=body)
-                resp.raise_for_status()
-                text = _extract_text(resp.json())
-                cleaned = _strip_fences(text)
-                if not cleaned:
-                    raise json.JSONDecodeError("empty", "", 0)
-                # 先尝试标准解析，失败再用宽松模式
-                try:
-                    return json.loads(cleaned)
-                except json.JSONDecodeError:
-                    # 宽松模式：修复中文引号后再解析
-                    fixed = _fix_json_string_quotes(cleaned)
-                    return json.loads(fixed)
-        except json.JSONDecodeError as e:
-            logger.warning(f"LLM JSON parse failed (attempt {attempt+1}): {e}")
-            logger.warning(f"LLM raw text was: {text[:400]}")
-        except (KeyError, IndexError) as e:
-            logger.warning(f"LLM response format error (attempt {attempt+1}): {e}")
-        except httpx.HTTPError as e:
-            logger.warning(f"LLM HTTP error (attempt {attempt+1}): {e}")
-        if attempt < retries:
-            await asyncio.sleep(2 ** attempt)
+    """调用 LLM，返回解析后的 JSON（dict 或 list）。失败返回 None。
+
+    自动降级：主模型失败 → 依次尝试 fallback 模型。
+    """
+    model_chain = _get_model_chain()
+    for model in model_chain:
+        for attempt in range(retries + 1):
+            try:
+                url, headers, body = _build_request(system, user, max_tokens=2048, model=model)
+                async with httpx.AsyncClient(timeout=httpx.Timeout(120.0, connect=10.0)) as client:
+                    resp = await client.post(url, headers=headers, json=body)
+                    resp.raise_for_status()
+                    text = _extract_text(resp.json())
+                    cleaned = _strip_fences(text)
+                    if not cleaned:
+                        raise json.JSONDecodeError("empty", "", 0)
+                    # 先尝试标准解析，失败再用宽松模式
+                    try:
+                        return json.loads(cleaned)
+                    except json.JSONDecodeError:
+                        # 宽松模式：修复中文引号后再解析
+                        fixed = _fix_json_string_quotes(cleaned)
+                        return json.loads(fixed)
+            except json.JSONDecodeError as e:
+                logger.warning(f"LLM JSON parse failed (model={model}, attempt {attempt+1}): {e}")
+                logger.warning(f"LLM raw text was: {text[:400]}")
+            except (KeyError, IndexError) as e:
+                logger.warning(f"LLM response format error (model={model}, attempt {attempt+1}): {e}")
+            except httpx.HTTPError as e:
+                logger.warning(f"LLM HTTP error (model={model}, attempt {attempt+1}): {e}")
+            if attempt < retries:
+                await asyncio.sleep(2 ** attempt)
+        logger.warning(f"Model {model} exhausted all retries, falling back...")
     return None
 
 
 async def llm_text(system: str, user: str) -> str | None:
-    """调用 LLM，返回纯文本。失败返回 None。"""
-    try:
-        url, headers, body = _build_request(system, user, max_tokens=512)
-        async with httpx.AsyncClient(timeout=httpx.Timeout(120.0, connect=10.0)) as client:
-            resp = await client.post(url, headers=headers, json=body)
-            resp.raise_for_status()
-            return _extract_text(resp.json())
-    except Exception as e:
-        logger.error(f"LLM text call failed: {e}")
-        return None
+    """调用 LLM，返回纯文本。失败返回 None。自动降级。"""
+    model_chain = _get_model_chain()
+    last_err = None
+    for model in model_chain:
+        try:
+            url, headers, body = _build_request(system, user, max_tokens=512, model=model)
+            async with httpx.AsyncClient(timeout=httpx.Timeout(120.0, connect=10.0)) as client:
+                resp = await client.post(url, headers=headers, json=body)
+                resp.raise_for_status()
+                return _extract_text(resp.json())
+        except Exception as e:
+            logger.warning(f"LLM text call failed (model={model}): {e}")
+            last_err = e
+    logger.error(f"All models failed for llm_text: {last_err}")
+    return None
