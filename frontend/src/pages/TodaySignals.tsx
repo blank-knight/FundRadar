@@ -128,9 +128,9 @@ export default function TodaySignals() {
   })
 
   return (
-    <div className="p-6 flex flex-col min-h-0 overflow-auto">
+    <div className="p-3 md:p-6 flex flex-col min-h-0 overflow-auto">
       {/* 1. 信号总览 */}
-      <div className="grid grid-cols-3 gap-4 mb-5">
+      <div className="grid grid-cols-3 gap-2 md:gap-4 mb-3 md:mb-5">
         <div className="bg-[#0d1220] border border-[#1f2937] rounded-xl p-4">
           <p className="text-gray-400 text-xs mb-1">今日信号</p>
           <p className="text-white text-2xl font-bold">{signals.length || '—'}</p>

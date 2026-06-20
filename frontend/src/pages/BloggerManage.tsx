@@ -64,7 +64,7 @@ export default function BloggerManage() {
   const trackedCount = bloggers.filter(b => b.tracked).length
 
   return (
-    <div className="p-6 h-full flex flex-col overflow-auto">
+    <div className="p-3 md:p-6 h-full flex flex-col overflow-auto">
       {/* 标题 */}
       <div className="mb-5">
         <h1 className="text-2xl font-bold text-white mb-1">博主管理</h1>
