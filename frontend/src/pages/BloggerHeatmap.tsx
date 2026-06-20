@@ -143,7 +143,7 @@ export default function BloggerHeatmap() {
         </div>
 
         {/* 热力图 */}
-        <div ref={containerRef} className="flex-1 min-h-[250px] md:min-h-0 bg-[#0d1220] rounded-2xl border border-[#1f2937] relative overflow-hidden">
+        <div ref={containerRef} className="h-[300px] md:h-auto md:flex-1 md:min-h-0 bg-[#0d1220] rounded-2xl border border-[#1f2937] relative overflow-hidden">
           {bloggers.length === 0 ? (
             <div className="absolute inset-0 flex items-center justify-center text-gray-500 text-sm">暂无博主数据</div>
           ) : size.w > 0 && (
