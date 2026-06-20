@@ -17,7 +17,7 @@ interface Props { collapsed: boolean; onToggle: () => void }
 export default function Sidebar({ collapsed, onToggle }: Props) {
   return (
     <aside className={clsx(
-      'flex flex-col border-r border-[#1f2937] bg-[#0d1220] transition-all duration-300 shrink-0',
+      'hidden md:flex flex-col border-r border-[#1f2937] bg-[#0d1220] transition-all duration-300 shrink-0',
       collapsed ? 'w-16' : 'w-56'
     )}>
       {/* Logo */}
