@@ -7,6 +7,7 @@ interface BloggerData {
   platform: string
   accuracy: number
   postCount: number
+  url?: string
 }
 
 function accuracyBg(acc: number) {
@@ -22,7 +23,7 @@ function accuracyText(acc: number) {
   return '#f87171'
 }
 
-interface Cell { username: string; platform: string; accuracy: number; postCount: number; x: number; y: number; w: number; h: number }
+interface Cell { username: string; platform: string; accuracy: number; postCount: number; url?: string; x: number; y: number; w: number; h: number }
 type TreeNode = Cell & { area: number }
 
 function squarified(items: Cell[], x: number, y: number, w: number, h: number): Cell[] {
@@ -122,18 +123,21 @@ export default function BloggerHeatmap() {
             <div className="text-center text-gray-500 py-8 text-sm">暂无数据</div>
           ) : (
             <div className="flex md:flex-col gap-2 overflow-x-auto md:overflow-y-auto">
-              {[...bloggers].sort((a, b) => b.accuracy - a.accuracy).map((b, i) => (
-                <div key={i} className="flex items-center justify-between px-2 md:px-1 py-1.5 rounded-lg hover:bg-[#1f2937] transition whitespace-nowrap shrink-0 md:shrink">
+              {[...bloggers].sort((a, b) => b.accuracy - a.accuracy).map((b, i) => {
+                const Wrapper = b.url ? 'a' : 'div'
+                return (
+                <Wrapper key={i} {...(b.url ? { href: b.url, target: '_blank', rel: 'noopener noreferrer' } : {})} className="flex items-center justify-between px-2 md:px-1 py-1.5 rounded-lg hover:bg-[#1f2937] transition whitespace-nowrap shrink-0 md:shrink cursor-pointer">
                   <div className="flex items-center gap-2 min-w-0">
                     <span className="text-gray-600 text-xs w-4">{i + 1}</span>
-                    <span className="text-gray-300 text-xs truncate max-w-[60px] md:max-w-[80px]">{b.username}</span>
+                    <span className="text-gray-300 text-xs truncate max-w-[60px] md:max-w-[80px] hover:text-[#00d4aa]">{b.username}</span>
                   </div>
                   <div className="flex items-center gap-2 text-xs">
                     <span className="text-gray-500 hidden md:inline">{b.postCount}帖</span>
                     <span style={{ color: accuracyText(b.accuracy) }}>{(b.accuracy * 100).toFixed(0)}%</span>
                   </div>
-                </div>
-              ))}
+                </Wrapper>
+                )
+              })}
             </div>
           )}
         </div>
@@ -152,7 +156,7 @@ export default function BloggerHeatmap() {
                 const cw = cell.w - gap * 2, ch = cell.h - gap * 2
                 if (cw < 4 || ch < 4) return null
                 return (
-                  <g key={i} onMouseEnter={e => setTooltip({ x: e.clientX, y: e.clientY, item: cell })} onMouseLeave={() => setTooltip(null)} style={{ cursor: 'pointer' }}>
+                  <g key={i} onMouseEnter={e => setTooltip({ x: e.clientX, y: e.clientY, item: cell })} onMouseLeave={() => setTooltip(null)} onClick={() => cell.url && window.open(cell.url, '_blank')} style={{ cursor: cell.url ? 'pointer' : 'default' }}>
                     <rect x={cx} y={cy} width={cw} height={ch} fill={bg} rx={8} />
                     {cw > 55 && ch > 36 && (
                       <text x={cx + 8} y={cy + 20} fill="#fff" fontSize={Math.min(13, cw / 5)} fontWeight={600} style={{ pointerEvents: 'none' }}>
