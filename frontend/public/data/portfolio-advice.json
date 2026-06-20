@@ -1,0 +1,50 @@
+{
+  "generated_at": "2026-06-20T10:09:50.493816",
+  "holdings": [
+    {
+      "code": "000001",
+      "name": "华夏成长混合",
+      "action": "加仓",
+      "confidence": 85,
+      "reason": "近期新闻多正面，且分析师评级普遍看好。",
+      "key_news": "特朗普团队顾问据悉正在研讨一套潜在的AI企业持股架构方案"
+    }
+  ],
+  "sector_alerts": [
+    {
+      "sector": "云计算",
+      "trend": "升温",
+      "action": "关注",
+      "reason": "技术进步推动需求增长",
+      "heat": 90
+    },
+    {
+      "sector": "人工智能",
+      "trend": "升温",
+      "action": "关注",
+      "reason": "应用领域拓展加速发展",
+      "heat": 88
+    },
+    {
+      "sector": "信息技术",
+      "trend": "升温",
+      "action": "可小仓位试水",
+      "reason": "行业持续创新，市场潜力大",
+      "heat": 85
+    },
+    {
+      "sector": "制造业",
+      "trend": "升温",
+      "action": "可小仓位试水",
+      "reason": "自动化升级，需求稳定增长",
+      "heat": 75
+    },
+    {
+      "sector": "股市",
+      "trend": "波动",
+      "action": "关注",
+      "reason": "市场情绪波动大，需谨慎操作",
+      "heat": 60
+    }
+  ]
+}
