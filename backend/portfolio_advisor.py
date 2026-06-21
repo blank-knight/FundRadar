@@ -277,6 +277,26 @@ async def main():
 
     await conn.close()
 
+    # git push 触发 Vercel 重建
+    import subprocess
+    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    try:
+        subprocess.run(["git", "add", "frontend/public/data/portfolio-advice.json"],
+                       cwd=project_root, check=True, capture_output=True)
+        diff = subprocess.run(["git", "diff", "--cached", "--quiet"],
+                              cwd=project_root, capture_output=True)
+        if diff.returncode != 0:
+            subprocess.run(["git", "commit", "-m",
+                            f"chore: portfolio advice update ({datetime.now().strftime('%Y-%m-%d %H:%M')})"],
+                           cwd=project_root, check=True, capture_output=True)
+            subprocess.run(["git", "push", "origin", "main"],
+                           cwd=project_root, check=True, capture_output=True)
+            print("✅ Git pushed, Vercel will rebuild")
+        else:
+            print("⏭️ No changes to push")
+    except subprocess.CalledProcessError as e:
+        print(f"⚠️ Git push failed: {e.stderr.decode() if e.stderr else e}")
+
 
 if __name__ == "__main__":
     asyncio.run(main())

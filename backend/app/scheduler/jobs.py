@@ -35,6 +35,7 @@ JOB_TIMEOUTS = {
     "signal_feedback": 60,
     "update_nav": 30,
     "export_frontend": 120,  # 导出+git push+Vercel重建
+    "portfolio_advisor": 300,  # LLM分析持仓建议（多次API调用，耗时）
 }
 
 
@@ -209,7 +210,6 @@ async def job_export_frontend():
     确保前端看到的是当天最新数据。
     VPN 环境下内网穿透不可用，用静态 JSON 快照 + Vercel 自动重建替代。
     """
-    import asyncio
     from pathlib import Path
 
     project_root = Path(__file__).resolve().parents[3]  # backend/app/scheduler/ → project root
@@ -232,6 +232,37 @@ async def job_export_frontend():
         logger.info(f"[scheduler] frontend_export done:\n{output[-500:]}")
     else:
         logger.error(f"[scheduler] frontend_export FAILED (exit={proc.returncode}):\n{output[-500:]}")
+
+
+@with_timeout("portfolio_advisor")
+async def job_portfolio_advisor():
+    """持仓顾问 — LLM分析持仓+新闻，生成操作建议+赛道提醒。
+
+    输出 portfolio-advice.json（前端持仓页面数据源）。
+    注意: 这个文件是 LLM 生成的，不是 DB 导出，不能在 export_frontend 中覆盖。
+    """
+    from pathlib import Path
+
+    project_root = Path(__file__).resolve().parents[3]
+    script = project_root / "backend" / "portfolio_advisor.py"
+    venv_python = project_root / "backend" / ".venv" / "bin" / "python3"
+
+    if not script.exists():
+        logger.error(f"[scheduler] portfolio_advisor script not found: {script}")
+        return
+
+    proc = await asyncio.create_subprocess_exec(
+        str(venv_python), str(script),
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.STDOUT,
+        cwd=str(project_root / "backend"),
+    )
+    stdout, _ = await proc.communicate()
+    output = stdout.decode() if stdout else ""
+    if proc.returncode == 0:
+        logger.info(f"[scheduler] portfolio_advisor done:\n{output[-500:]}")
+    else:
+        logger.error(f"[scheduler] portfolio_advisor FAILED (exit={proc.returncode}):\n{output[-500:]}")
 
 
 async def start_polling():
