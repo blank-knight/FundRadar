@@ -172,4 +172,55 @@ async def update_all_portfolio_nav(db: AsyncSession) -> dict:
         f"NAV update done: updated={updated} failed={failed} "
         f"skipped={skipped} total={len(items)}"
     )
+
+    # 同步更新 portfolio.json（前端数据源）
+    try:
+        await _sync_portfolio_json(items)
+    except Exception as e:
+        logger.error(f"Failed to sync portfolio.json: {e}")
+
     return {"updated": updated, "failed": failed, "skipped": skipped, "total": len(items)}
+
+
+async def _sync_portfolio_json(items) -> None:
+    """净值更新后，把最新数据写回 frontend/public/data/portfolio.json。
+
+    portfolio.json 是前端唯一数据源，不能从 DB 全量覆盖（会复活前端删除的持仓），
+    只更新已有持仓的净值/盈亏字段。
+    """
+    import json
+    from pathlib import Path
+    from datetime import datetime
+
+    json_path = Path(__file__).resolve().parents[2].parent / "frontend" / "public" / "data" / "portfolio.json"
+
+    # 读取现有 portfolio.json
+    existing = {"generated_at": datetime.now().isoformat(), "holdings": []}
+    if json_path.exists():
+        with open(json_path) as f:
+            existing = json.load(f)
+
+    # 按 fund_code 建索引
+    db_by_code = {}
+    for item in items:
+        if item.fund_code:
+            db_by_code[item.fund_code] = {
+                "current_price": item.current_price,
+                "current_value": item.current_value,
+                "profit_loss": item.profit_loss,
+                "profit_loss_pct": item.profit_loss_pct,
+                "price_updated_at": item.price_updated_at.isoformat() if item.price_updated_at else None,
+            }
+
+    # 更新 JSON 中已有持仓的净值（不增删持仓）
+    for h in existing.get("holdings", []):
+        code = h.get("fund_code") or h.get("code")
+        if code in db_by_code:
+            h.update(db_by_code[code])
+
+    existing["generated_at"] = datetime.now().isoformat()
+
+    with open(json_path, "w", encoding="utf-8") as f:
+        json.dump(existing, f, ensure_ascii=False, indent=2, default=str)
+
+    logger.info(f"portfolio.json synced with latest NAV ({len(existing.get('holdings', []))} holdings)")

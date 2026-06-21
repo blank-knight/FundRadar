@@ -314,7 +314,10 @@ async def main():
     counts["predictions"] = await export_predictions(conn)
     counts["news"] = await export_news(conn)
     counts["quant"] = await export_quant(conn)
-    counts["portfolio"] = await export_portfolio(conn)
+    # portfolio.json 不在这里导出！
+    # portfolio.json 是前端唯一数据源（截图导入/删除都通过 GitHub API 操作它）
+    # 后端通过 portfolio_advisor.py 的 sync_portfolio_json_to_db() 单向同步 JSON→DB
+    # 如果这里覆盖会导致前端删除的持仓复活
 
     await conn.close()
 

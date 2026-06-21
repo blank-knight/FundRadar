@@ -39,10 +39,13 @@ async def get_portfolio(conn, user_id):
 
 
 async def sync_portfolio_json_to_db(conn, user_id):
-    """从 frontend/public/data/portfolio.json 同步持仓到数据库。
+    """双向同步 portfolio.json ↔ 数据库。
 
-    网页端截图导入写入 portfolio.json（GitHub commit），
-    这里读取后 upsert 到 portfolio 表，让后续 LLM 分析能拿到数据。
+    1. JSON 中有、DB 中没有的 → 插入 DB（截图导入的新持仓）
+    2. JSON 中有、DB 中也有的 → 更新 DB（金额/盈亏）
+    3. DB 中有、JSON 中没有的 → 从 DB 删除（前端删除的持仓）
+
+    portfolio.json 是唯一数据源（前端管理增删），DB 是分析用的副本。
     """
     import json
     from pathlib import Path
@@ -55,14 +58,14 @@ async def sync_portfolio_json_to_db(conn, user_id):
         data = json.load(f)
 
     holdings = data.get("holdings", [])
-    if not holdings:
-        return 0
-
+    json_codes = set()
     synced = 0
+
     for h in holdings:
-        code = h.get("fund_code")
+        code = h.get("fund_code") or h.get("code")
         if not code:
             continue
+        json_codes.add(code)
 
         # 检查是否已存在
         existing = await conn.fetchval(
@@ -70,12 +73,15 @@ async def sync_portfolio_json_to_db(conn, user_id):
             user_id, code,
         )
         if existing:
-            # 更新金额和盈亏
+            # 更新（净值更新后的最新数据）
             await conn.execute(
                 "UPDATE portfolio SET current_value=$1, profit_loss=$2, profit_loss_pct=$3, "
                 "cost_total=$4, fund_name=$5 WHERE id=$6",
-                h.get("amount"), h.get("profit"), h.get("profit_pct"),
-                h.get("cost_total"), h.get("fund_name", code), existing,
+                h.get("current_value") or h.get("amount"),
+                h.get("profit_loss") or h.get("profit"),
+                h.get("profit_loss_pct") or h.get("profit_pct"),
+                h.get("cost_total"),
+                h.get("fund_name", code), existing,
             )
         else:
             # 插入新持仓
@@ -85,12 +91,25 @@ async def sync_portfolio_json_to_db(conn, user_id):
                 "VALUES ($1, $2, $3, '', 0, 0, $4, $5, $6, $7)",
                 user_id, code, h.get("fund_name", code),
                 h.get("cost_total") or 0,
-                h.get("amount"), h.get("profit"), h.get("profit_pct"),
+                h.get("current_value") or h.get("amount"),
+                h.get("profit_loss") or h.get("profit"),
+                h.get("profit_loss_pct") or h.get("profit_pct"),
             )
         synced += 1
 
+    # 删除 JSON 中已不存在的 DB 持仓（前端删除操作）
+    deleted = await conn.fetch(
+        "SELECT id, fund_code, fund_name FROM portfolio WHERE user_id=$1",
+        user_id,
+    )
+    removed = 0
+    for row in deleted:
+        if row["fund_code"] not in json_codes:
+            await conn.execute("DELETE FROM portfolio WHERE id=$1", row["id"])
+            removed += 1
+
     if synced:
-        print(f"   从 portfolio.json 同步了 {synced} 条持仓到数据库")
+        print(f"   portfolio.json → DB: 同步 {synced} 条, 删除 {removed} 条")
     return synced
 
 
