@@ -283,6 +283,8 @@ async def main():
     logger.info(f"数据库连接成功: {conn.get_server_version()}")
 
     # 导出各模块
+    # 注意: portfolio-advice.json 由 portfolio_advisor.py 独立生成（LLM分析，非DB导出）
+    #       不要在这里覆盖它！前端期望 {generated_at, holdings[], sector_alerts[]} 格式
     logger.info("导出数据...")
     counts = {}
     counts["signals"] = await export_signals(conn)
@@ -290,7 +292,6 @@ async def main():
     counts["predictions"] = await export_predictions(conn)
     counts["news"] = await export_news(conn)
     counts["quant"] = await export_quant(conn)
-    counts["portfolio"] = await export_portfolio_advice(conn)
 
     await conn.close()
 
