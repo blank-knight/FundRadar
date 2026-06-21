@@ -38,6 +38,62 @@ async def get_portfolio(conn, user_id):
     return [dict(r) for r in rows]
 
 
+async def sync_portfolio_json_to_db(conn, user_id):
+    """从 frontend/public/data/portfolio.json 同步持仓到数据库。
+
+    网页端截图导入写入 portfolio.json（GitHub commit），
+    这里读取后 upsert 到 portfolio 表，让后续 LLM 分析能拿到数据。
+    """
+    import json
+    from pathlib import Path
+
+    json_path = Path(__file__).resolve().parent.parent / "frontend" / "public" / "data" / "portfolio.json"
+    if not json_path.exists():
+        return 0
+
+    with open(json_path) as f:
+        data = json.load(f)
+
+    holdings = data.get("holdings", [])
+    if not holdings:
+        return 0
+
+    synced = 0
+    for h in holdings:
+        code = h.get("fund_code")
+        if not code:
+            continue
+
+        # 检查是否已存在
+        existing = await conn.fetchval(
+            "SELECT id FROM portfolio WHERE user_id=$1 AND fund_code=$2",
+            user_id, code,
+        )
+        if existing:
+            # 更新金额和盈亏
+            await conn.execute(
+                "UPDATE portfolio SET current_value=$1, profit_loss=$2, profit_loss_pct=$3, "
+                "cost_total=$4, fund_name=$5 WHERE id=$6",
+                h.get("amount"), h.get("profit"), h.get("profit_pct"),
+                h.get("cost_total"), h.get("fund_name", code), existing,
+            )
+        else:
+            # 插入新持仓
+            await conn.execute(
+                "INSERT INTO portfolio (user_id, fund_code, fund_name, fund_type, "
+                "shares, cost_price, cost_total, current_value, profit_loss, profit_loss_pct) "
+                "VALUES ($1, $2, $3, '', 0, 0, $4, $5, $6, $7)",
+                user_id, code, h.get("fund_name", code),
+                h.get("cost_total") or 0,
+                h.get("amount"), h.get("profit"), h.get("profit_pct"),
+            )
+        synced += 1
+
+    if synced:
+        print(f"   从 portfolio.json 同步了 {synced} 条持仓到数据库")
+    return synced
+
+
 async def get_recent_news(conn, limit=30):
     """拿到最近新闻（只取有标题的）"""
     rows = await conn.fetch(
@@ -232,6 +288,9 @@ async def generate_sector_alerts(tagged_news, portfolio_sectors):
 
 async def main():
     conn = await asyncpg.connect(DB_URL)
+
+    print("0/5 同步 portfolio.json → 数据库...")
+    await sync_portfolio_json_to_db(conn, USER_ID)
 
     print("1/5 拉取持仓和数据...")
     portfolio = await get_portfolio(conn, USER_ID)

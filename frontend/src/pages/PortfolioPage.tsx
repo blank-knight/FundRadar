@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Plus, Trash2, TrendingUp, TrendingDown, Wallet } from 'lucide-react'
 import clsx from 'clsx'
 import PortfolioAdvice from '../components/PortfolioAdvice'
+import ScreenshotUpload from '../components/ScreenshotUpload'
 
 type Position = {
   id: number
@@ -101,15 +102,18 @@ export default function PortfolioPage() {
 
   return (
     <div className="p-3 md:p-6 h-full flex flex-col overflow-auto">
-      <div className="flex items-start justify-between mb-4">
+      <div className="flex items-start justify-between mb-4 flex-wrap gap-2">
         <div>
           <h1 className="text-lg md:text-2xl font-bold text-white mb-1">我的持仓</h1>
           <p className="text-gray-400 text-xs md:text-sm">AI 分析新闻和分析师评级，帮你的持仓做决策</p>
         </div>
-        <button onClick={() => setShowAdd(true)}
-          className="flex items-center gap-2 px-3 md:px-4 py-2 bg-[#00d4aa] text-[#0a0e1a] rounded-lg text-sm font-semibold hover:bg-[#00b894] transition shrink-0">
-          <Plus size={16} /><span className="hidden md:inline">添加持仓</span>
-        </button>
+        <div className="flex items-center gap-2 shrink-0">
+          <ScreenshotUpload onImported={() => window.location.reload()} />
+          <button onClick={() => setShowAdd(true)}
+            className="flex items-center gap-2 px-3 md:px-4 py-2 bg-[#00d4aa] text-[#0a0e1a] rounded-lg text-sm font-semibold hover:bg-[#00b894] transition">
+            <Plus size={16} /><span className="hidden md:inline">手动添加</span>
+          </button>
+        </div>
       </div>
 
       {/* ── AI 操作建议 + 赛道提醒 ── */}
