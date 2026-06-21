@@ -157,6 +157,28 @@ async def export_news(conn: asyncpg.Connection):
     return len(items)
 
 
+async def export_portfolio(conn: asyncpg.Connection):
+    """导出用户持仓列表 → portfolio.json（前端持仓页面数据源）。"""
+    rows = await conn.fetch("""
+        SELECT id, fund_code, fund_name, fund_type,
+               shares, cost_price, cost_total,
+               current_price, current_value,
+               profit_loss, profit_loss_pct,
+               price_updated_at
+        FROM portfolio
+        ORDER BY current_value DESC NULLS LAST
+    """)
+    items = []
+    for r in rows:
+        d = dict(r)
+        # datetime 序列化
+        if d.get("price_updated_at"):
+            d["price_updated_at"] = d["price_updated_at"].isoformat() if hasattr(d["price_updated_at"], "isoformat") else str(d["price_updated_at"])
+        items.append(d)
+    _write_json("portfolio.json", {"generated_at": datetime.now().isoformat(), "holdings": items})
+    return len(items)
+
+
 async def export_quant(conn: asyncpg.Connection):
     """导出最新量化快照。"""
     row = await conn.fetchrow("""
@@ -292,6 +314,7 @@ async def main():
     counts["predictions"] = await export_predictions(conn)
     counts["news"] = await export_news(conn)
     counts["quant"] = await export_quant(conn)
+    counts["portfolio"] = await export_portfolio(conn)
 
     await conn.close()
 
