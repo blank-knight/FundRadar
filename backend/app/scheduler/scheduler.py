@@ -20,6 +20,7 @@ from app.scheduler.jobs import (
     job_signal_feedback,
     job_update_nav,
     job_quant_crawl,
+    job_export_frontend,
 )
 
 logger = logging.getLogger(__name__)
@@ -151,6 +152,17 @@ def setup_scheduler() -> AsyncIOScheduler:
         name="持仓净值更新",
         replace_existing=True,
         misfire_grace_time=300,
+    )
+
+    # 17:05 — 导出前端数据 → git push → Vercel 自动重建
+    # 在所有数据采集/信号生成/净值更新之后，确保前端拿到当天最新数据
+    scheduler.add_job(
+        job_export_frontend,
+        CronTrigger(hour=17, minute=5, timezone=TIMEZONE),
+        id="export_frontend",
+        name="前端数据导出+推送",
+        replace_existing=True,
+        misfire_grace_time=600,
     )
 
     logger.info(f"[scheduler] {len(scheduler.get_jobs())} jobs registered")

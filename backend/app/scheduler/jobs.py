@@ -34,6 +34,7 @@ JOB_TIMEOUTS = {
     "push_signal": 30,
     "signal_feedback": 60,
     "update_nav": 30,
+    "export_frontend": 120,  # 导出+git push+Vercel重建
 }
 
 
@@ -198,6 +199,39 @@ async def job_update_nav():
     async with AsyncSessionLocal() as db:
         result = await update_all_portfolio_nav(db)
     logger.info(f"[scheduler] nav_update: {result}")
+
+
+@with_timeout("export_frontend")
+async def job_export_frontend():
+    """导出前端数据 → git push → Vercel 自动重建。
+
+    在所有数据采集/信号生成/净值更新之后运行（17:05），
+    确保前端看到的是当天最新数据。
+    VPN 环境下内网穿透不可用，用静态 JSON 快照 + Vercel 自动重建替代。
+    """
+    import asyncio
+    from pathlib import Path
+
+    project_root = Path(__file__).resolve().parents[3]  # backend/app/scheduler/ → project root
+    script = project_root / "scripts" / "export_frontend.py"
+    venv_python = project_root / "backend" / ".venv" / "bin" / "python3"
+
+    if not script.exists():
+        logger.error(f"[scheduler] export script not found: {script}")
+        return
+
+    proc = await asyncio.create_subprocess_exec(
+        str(venv_python), str(script),
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.STDOUT,
+        cwd=str(project_root),
+    )
+    stdout, _ = await proc.communicate()
+    output = stdout.decode() if stdout else ""
+    if proc.returncode == 0:
+        logger.info(f"[scheduler] frontend_export done:\n{output[-500:]}")
+    else:
+        logger.error(f"[scheduler] frontend_export FAILED (exit={proc.returncode}):\n{output[-500:]}")
 
 
 async def start_polling():
