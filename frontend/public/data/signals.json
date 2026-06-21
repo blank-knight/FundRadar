@@ -1,6 +1,21 @@
 {
   "items": [
     {
+      "signal_date": "2026-06-21T00:00:00",
+      "target_symbol": "000300",
+      "target_name": "沪深300",
+      "final_signal": "hold",
+      "confidence": 44.8,
+      "blogger_consensus_score": 0.0,
+      "news_sentiment_score": 0.2621,
+      "retail_sentiment_score": -0.2063,
+      "fund_flow_score": null,
+      "industry_momentum_score": null,
+      "reasoning": "今日沪深300持观望信号，基于情绪面数据。博主和新闻情绪中性偏正面，散户情绪微弱负面。量化面数据暂不可用。综合得分微正，反映市场情绪稳定。注意，情绪数据波动较大，量化数据缺失，决策需谨慎。市场波动风险存在，请理性投资。",
+      "analyzed_news_count": 34,
+      "participating_bloggers": 0
+    },
+    {
       "signal_date": "2026-06-20T00:00:00",
       "target_symbol": "000300",
       "target_name": "沪深300",
@@ -58,21 +73,6 @@
       "industry_momentum_score": null,
       "reasoning": "今日沪深300信号为“持有观望”，基于博主中立共识（0位博主，共识分+0.00）及偏正面新闻情绪（42条，情绪分+0.39），综合得分+0.157。注意数据来源有限，仅供参考。投资需谨慎，市场波动风险自担。",
       "analyzed_news_count": 42,
-      "participating_bloggers": 0
-    },
-    {
-      "signal_date": "2026-05-31T00:00:00",
-      "target_symbol": "000300",
-      "target_name": "沪深300",
-      "final_signal": "hold",
-      "confidence": 0.0,
-      "blogger_consensus_score": 0.0,
-      "news_sentiment_score": 0.0,
-      "retail_sentiment_score": 0.0,
-      "fund_flow_score": null,
-      "industry_momentum_score": null,
-      "reasoning": "**沪深300 · 今日信号：持有观望**\n\n本次信号基于博主观点与新闻情绪的综合评分模型生成。当前综合得分为 +0.000，博主共识与新闻情绪均呈中性，系统因此给出\"持有观望\"建议，置信度为 0.0%。\n\n⚠️ **数据局限性提示：** 今日无博主参与评分，亦无新闻纳入分析，数据样本为零，信号参考价值极为有限，建议以此次结果为参考依据时保持高度谨慎。\n\n> 风险提示：本信号仅供参考，不构成任何投资建议，市场存在不确定性，投资者应结合自身风险承受能力独立决策。",
-      "analyzed_news_count": 0,
       "participating_bloggers": 0
     }
   ]

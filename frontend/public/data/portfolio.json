@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-06-21T10:24:17.794785",
+  "generated_at": "2026-06-21T17:01:27.801441",
   "holdings": [
     {
       "id": 1,
@@ -11,9 +11,9 @@
       "cost_total": 1250.0,
       "current_price": 1.447,
       "current_value": 1447.0,
-      "profit_loss": 197.0,
-      "profit_loss_pct": 15.76,
-      "price_updated_at": "2026-06-20T09:00:31.826658"
+      "profit_loss": -53.0,
+      "profit_loss_pct": -3.5333,
+      "price_updated_at": "2026-06-21T09:01:27.710206"
     },
     {
       "id": 4,
@@ -27,7 +27,7 @@
       "current_value": 1447.0,
       "profit_loss": -53.0,
       "profit_loss_pct": -3.5333,
-      "price_updated_at": "2026-06-20T09:00:31.925685"
+      "price_updated_at": "2026-06-21T09:01:27.710206"
     },
     {
       "id": 5,
@@ -41,7 +41,7 @@
       "current_value": 1340.0,
       "profit_loss": -60.0,
       "profit_loss_pct": -4.2857,
-      "price_updated_at": "2026-06-20T09:00:32.252760"
+      "price_updated_at": "2026-06-21T09:01:27.793392"
     }
   ]
 }
