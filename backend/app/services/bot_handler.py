@@ -1,4 +1,5 @@
 """Telegram Bot 命令处理器 — 绑定账号、查询信号、帮助。"""
+import asyncio
 import logging
 import secrets
 from datetime import datetime
@@ -478,7 +479,53 @@ async def handle_confirm_import(chat_id: str, db: AsyncSession) -> None:
     if no_code:
         lines.append(f"跳过（无代码）：{no_code} 只")
     lines.append(f"━━━━━━━━━━━━━━━━")
-    lines.append("净值将在今日17:00自动更新")
-    lines.append("发送 /portfolio 查看")
+    lines.append("📊 正在同步到网页，约30秒后可查看...")
 
     await bot.send_message(chat_id, "\n".join(lines))
+
+    # 异步触发 portfolio_advisor 重新生成前端数据
+    if added > 0:
+        asyncio.create_task(_sync_portfolio_to_frontend(chat_id))
+
+
+async def _sync_portfolio_to_frontend(chat_id: str) -> None:
+    """导入持仓后异步触发 portfolio_advisor → git push，让网页立刻看到新持仓。"""
+    import subprocess
+    from pathlib import Path
+
+    project_root = Path(__file__).resolve().parents[3]
+    venv_python = project_root / "backend" / ".venv" / "bin" / "python3"
+    script = project_root / "backend" / "portfolio_advisor.py"
+
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            str(venv_python), str(script),
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.STDOUT,
+            cwd=str(project_root / "backend"),
+        )
+        stdout, _ = await proc.communicate()
+        output = stdout.decode() if stdout else ""
+
+        if proc.returncode == 0:
+            await bot.send_message(
+                chat_id,
+                "✅ 网页已更新！\n"
+                "持仓顾问已分析完新持仓，操作建议已同步到网页。\n"
+                "净值数据将在今日17:00自动补全。"
+            )
+            logger.info(f"[screenshot_import] portfolio_advisor sync done for {chat_id}")
+        else:
+            await bot.send_message(
+                chat_id,
+                "⚠️ 同步到网页时出错，但持仓已保存。\n"
+                "网页将在今日17:10自动更新。"
+            )
+            logger.error(f"[screenshot_import] portfolio_advisor FAILED: {output[-300:]}")
+    except Exception as e:
+        logger.error(f"[screenshot_import] sync error: {e}")
+        await bot.send_message(
+            chat_id,
+            "⚠️ 同步到网页时出错，但持仓已保存。\n"
+            "网页将在今日17:10自动更新。"
+        )
