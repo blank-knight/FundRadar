@@ -71,6 +71,31 @@ class TelegramBot:
             logger.error(f"Set webhook error: {e}")
             return False
 
+    async def get_file(self, file_id: str) -> bytes | None:
+        """下载 Telegram 文件（图片等），返回二进制数据。"""
+        try:
+            async with httpx.AsyncClient(timeout=30) as client:
+                # 1. 获取 file_path
+                resp = await client.get(
+                    f"{self.base}/getFile",
+                    params={"file_id": file_id},
+                )
+                data = resp.json()
+                if not data.get("ok"):
+                    logger.warning(f"getFile failed: {data.get('description')}")
+                    return None
+                file_path = data["result"]["file_path"]
+                # 2. 下载文件内容
+                download_url = f"https://api.telegram.org/file/bot{self.token}/{file_path}"
+                resp2 = await client.get(download_url)
+                if resp2.status_code == 200:
+                    return resp2.content
+                logger.error(f"Download file failed: {resp2.status_code}")
+                return None
+        except Exception as e:
+            logger.error(f"get_file error: {e}")
+            return None
+
 
 # 单例
 bot = TelegramBot()

@@ -28,12 +28,20 @@ HELP_TEXT = """
 /unbind    — 解除 Telegram 绑定
 /help      — 显示此帮助
 
+<b>📸 截图导入持仓</b>
+直接发送基金持仓截图，AI自动识别并添加
+发送 /confirm 确认导入识别结果
+
 <b>自动推送</b>
 绑定后每天收盘后自动推送信号（约16:30）
 系统检测到预测连续出错时自动推送复盘报告
 
 <i>⚠️ 信号仅供参考，不构成投资建议</i>
 """.strip()
+
+
+# 临时存储待确认的识别结果：chat_id → list[fund_dict]
+_pending_imports: dict[str, list[dict]] = {}
 
 
 async def handle_update(update: dict, db: AsyncSession) -> None:
@@ -44,6 +52,11 @@ async def handle_update(update: dict, db: AsyncSession) -> None:
 
     chat_id = str(message["chat"]["id"])
     text = message.get("text", "").strip()
+
+    # ── 图片消息：持仓截图识别 ──
+    if message.get("photo"):
+        await handle_screenshot(chat_id, message, db)
+        return
 
     if not text.startswith("/"):
         return
@@ -72,6 +85,13 @@ async def handle_update(update: dict, db: AsyncSession) -> None:
 
     elif command == "/status":
         await handle_status(chat_id, db)
+
+    elif command == "/confirm":
+        await handle_confirm_import(chat_id, db)
+
+    elif command == "/cancel":
+        _pending_imports.pop(chat_id, None)
+        await bot.send_message(chat_id, "✅ 已取消截图导入。")
 
 
 async def handle_bind(chat_id: str, code: str, db: AsyncSession) -> None:
@@ -292,3 +312,173 @@ async def handle_review(chat_id: str, db: AsyncSession) -> None:
     )
     await bot.send_message(chat_id, part1)
     await bot.send_message(chat_id, part2)
+
+
+# ─────────────────────────────────────────────
+# 截图识别导入持仓
+# ─────────────────────────────────────────────
+
+async def handle_screenshot(chat_id: str, message: dict, db: AsyncSession) -> None:
+    """处理持仓截图：下载图片 → Claude Vision 识别 → 等待用户确认。"""
+    from app.services.screenshot_ocr import recognize_portfolio_screenshot
+
+    # 验证用户已绑定
+    result = await db.execute(
+        select(User).where(User.telegram_chat_id == chat_id)
+    )
+    user = result.scalar_one_or_none()
+    if not user:
+        await bot.send_message(chat_id, "❌ 请先绑定账号，发送 /help 查看方法。")
+        return
+
+    # 取最大尺寸的图片
+    photos = message["photo"]
+    best = max(photos, key=lambda p: p.get("width", 0))
+    file_id = best["file_id"]
+
+    await bot.send_message(chat_id, "🔍 正在识别持仓截图，请稍候（约10-20秒）...")
+
+    # 下载图片
+    img_data = await bot.get_file(file_id)
+    if not img_data:
+        await bot.send_message(chat_id, "❌ 图片下载失败，请重新发送。")
+        return
+
+    # base64 编码
+    import base64 as b64mod
+    img_b64 = b64mod.b64encode(img_data).decode()
+
+    # 识别
+    try:
+        funds = await recognize_portfolio_screenshot(img_b64)
+    except Exception as e:
+        logger.error(f"Screenshot OCR failed: {e}")
+        await bot.send_message(chat_id, f"❌ 识别失败: {e}")
+        return
+
+    if not funds:
+        await bot.send_message(chat_id, "⚠️ 未识别到基金信息，请确保截图清晰完整。")
+        return
+
+    # 存入待确认队列
+    _pending_imports[chat_id] = funds
+
+    # 格式化预览
+    lines = [f"<b>📋 识别到 {len(funds)} 只基金</b>", "━━━━━━━━━━━━━━━━"]
+    for i, f in enumerate(funds, 1):
+        name = f.get("fund_name", "未知")
+        code = f.get("fund_code") or "❓未匹配"
+        amount = f.get("amount")
+        profit = f.get("profit")
+        profit_pct = f.get("profit_pct")
+
+        amount_str = f"¥{amount:,.2f}" if amount else "—"
+        if profit is not None and profit_pct is not None:
+            pnl_str = f"  {profit:+,.2f}（{profit_pct:+.2f}%）"
+            emoji = "🟢" if profit >= 0 else "🔴"
+        else:
+            pnl_str = ""
+            emoji = "⚪"
+
+        lines.append(f"{i}. {emoji} <b>{name}</b>")
+        lines.append(f"   代码：{code}  金额：{amount_str}{pnl_str}")
+
+    lines.append("━━━━━━━━━━━━━━━━")
+    no_code = sum(1 for f in funds if not f.get("fund_code"))
+    if no_code:
+        lines.append(f"⚠️ {no_code} 只基金未匹配到代码，导入后需手动补全")
+    lines.append("")
+    lines.append("✅ 发送 <b>/confirm</b> 确认导入")
+    lines.append("❌ 发送 <b>/cancel</b> 取消")
+
+    await bot.send_message(chat_id, "\n".join(lines))
+
+
+async def handle_confirm_import(chat_id: str, db: AsyncSession) -> None:
+    """确认导入待确认的识别结果。"""
+    from app.models.models import Portfolio
+
+    funds = _pending_imports.get(chat_id)
+    if not funds:
+        await bot.send_message(chat_id, "⚠️ 没有待导入的识别结果。请先发送持仓截图。")
+        return
+
+    # 获取用户
+    result = await db.execute(
+        select(User).where(User.telegram_chat_id == chat_id)
+    )
+    user = result.scalar_one_or_none()
+    if not user:
+        await bot.send_message(chat_id, "❌ 请先绑定账号。")
+        return
+
+    # 批量导入
+    added = 0
+    skipped = 0
+    no_code = 0
+
+    for f in funds:
+        code = f.get("fund_code")
+        name = f.get("fund_name", "")
+        amount = f.get("amount")
+
+        if not code:
+            no_code += 1
+            continue
+
+        # 检查是否已存在
+        existing = await db.execute(
+            select(Portfolio).where(
+                Portfolio.user_id == user.id,
+                Portfolio.fund_code == code,
+            )
+        )
+        if existing.scalar_one_or_none():
+            skipped += 1
+            continue
+
+        # 从截图数据直接映射到 Portfolio 字段
+        # 截图提供: amount(当前市值), profit(盈亏), profit_pct(收益率)
+        # cost_total = amount - profit = 投入本金
+        profit = f.get("profit") or 0
+        amount = f.get("amount") or 0
+        profit_pct = f.get("profit_pct")
+        cost_total = round(amount - profit, 2) if amount else 0
+
+        # shares/cost_price 截图里没有，设为0，等17:00净值更新时自动补全
+        item = Portfolio(
+            user_id=user.id,
+            fund_code=code,
+            fund_name=name,
+            fund_type="",
+            shares=0,
+            cost_price=0,
+            cost_total=cost_total,
+            current_value=round(amount, 2) if amount else None,
+            current_price=None,
+            profit_loss=round(profit, 2) if profit else None,
+            profit_loss_pct=round(profit_pct, 2) if profit_pct else None,
+        )
+        db.add(item)
+        added += 1
+
+    await db.commit()
+
+    # 清除待确认队列
+    _pending_imports.pop(chat_id, None)
+
+    # 发送结果
+    lines = [
+        f"<b>✅ 导入完成</b>",
+        f"━━━━━━━━━━━━━━━━",
+        f"新增：{added} 只",
+    ]
+    if skipped:
+        lines.append(f"跳过（已存在）：{skipped} 只")
+    if no_code:
+        lines.append(f"跳过（无代码）：{no_code} 只")
+    lines.append(f"━━━━━━━━━━━━━━━━")
+    lines.append("净值将在今日17:00自动更新")
+    lines.append("发送 /portfolio 查看")
+
+    await bot.send_message(chat_id, "\n".join(lines))
