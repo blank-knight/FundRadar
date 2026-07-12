@@ -131,11 +131,11 @@ export default function TodaySignals() {
     <div className="p-3 md:p-6 flex flex-col min-h-0 overflow-auto">
       {/* 1. 信号总览 */}
       <div className="grid grid-cols-3 gap-2 md:gap-4 mb-3 md:mb-5">
-        <div className="bg-[#0d1220] border border-[#1f2937] rounded-xl p-4">
+        <div className="card-glass p-4">
           <p className="text-gray-400 text-xs mb-1">今日信号</p>
           <p className="text-white text-2xl font-bold">{signals.length || '—'}</p>
         </div>
-        <div className="bg-[#0d1220] border border-[#1f2937] rounded-xl p-4">
+        <div className="card-glass p-4">
           <p className="text-gray-400 text-xs mb-1">看多/看空</p>
           <p className="text-white text-2xl font-bold">
             <span className="text-[#4ade80]">{bullCount || '—'}</span>
@@ -143,7 +143,7 @@ export default function TodaySignals() {
             <span className="text-[#f87171]">{bearCount || '—'}</span>
           </p>
         </div>
-        <div className="bg-[#0d1220] border border-[#1f2937] rounded-xl p-4">
+        <div className="card-glass p-4">
           <p className="text-gray-400 text-xs mb-1">平均置信度</p>
           <p className="text-white text-2xl font-bold">{avgConf} {parseFloat(avgConf) > 0 && <span className="text-[#fbbf24]">★</span>}</p>
         </div>
@@ -151,7 +151,7 @@ export default function TodaySignals() {
 
       {/* 2. 信号维度评分 */}
       {latest && (
-        <div className="bg-[#0d1220] border border-[#1f2937] rounded-xl p-4 mb-5">
+        <div className="card-glass p-4 mb-5">
           <h3 className="text-gray-300 text-sm font-medium mb-3 flex items-center gap-2">
             <BarChart3 size={14} className="text-[#00d4aa]" />
             信号维度评分 — {latest.target_name} ({fmtDate(latest.signal_date)})
@@ -167,7 +167,7 @@ export default function TodaySignals() {
       )}
 
       {/* 3. 数据源面板 */}
-      <div className="bg-[#0d1220] border border-[#1f2937] rounded-xl overflow-hidden mb-5">
+      <div className="card-glass overflow-hidden mb-5">
         <button onClick={() => setSourceExpanded(!sourceExpanded)} className="w-full flex items-center justify-between px-4 py-3 hover:bg-white/5 transition">
           <div className="flex items-center gap-3">
             <Globe size={16} className="text-[#00d4aa]" />
@@ -183,7 +183,7 @@ export default function TodaySignals() {
 
         {sourceExpanded && (
           <>
-            <div className="flex border-t border-[#1f2937]">
+            <div className="flex border-t border-white/[0.04]">
               <button onClick={() => setSourceTab('news')} className={clsx('flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-medium transition border-b-2', sourceTab === 'news' ? 'text-[#00d4aa] border-[#00d4aa] bg-[#00d4aa08]' : 'text-gray-400 border-transparent hover:text-gray-200')}>
                 <Newspaper size={14} /> 新闻 ({news.length})
               </button>
@@ -194,7 +194,7 @@ export default function TodaySignals() {
 
             {/* 新闻列表 */}
             {sourceTab === 'news' && (
-              <div className="min-h-[200px] max-h-[50vh] overflow-y-auto divide-y divide-[#1f2937]/50">
+              <div className="min-h-[200px] max-h-[50vh] overflow-y-auto divide-y divide-white/[0.04]">
                 {news.length === 0 ? (
                   <div className="text-center text-gray-500 py-8 text-sm">暂无新闻数据</div>
                 ) : news.map((n, i) => (
@@ -221,7 +221,7 @@ export default function TodaySignals() {
 
             {/* 博主帖子列表 */}
             {sourceTab === 'bloggers' && (
-              <div className="min-h-[200px] max-h-[50vh] overflow-y-auto divide-y divide-[#1f2937]/50">
+              <div className="min-h-[200px] max-h-[50vh] overflow-y-auto divide-y divide-white/[0.04]">
                 {predictions.length === 0 ? (
                   <div className="text-center text-gray-500 py-8 text-sm">暂无博主动态</div>
                 ) : predictions.map((p, i) => (
@@ -257,7 +257,7 @@ export default function TodaySignals() {
 
       {/* 4. 筛选 + 信号卡片 */}
       <div className="flex items-center gap-3 mb-4">
-        <div className="flex bg-[#111827] border border-[#1f2937] rounded-lg p-0.5">
+        <div className="flex bg-white/[0.03] border border-white/[0.06] rounded-lg p-0.5">
           {FILTERS.map(f => (
             <button key={f} onClick={() => setFilter(f)} className={clsx('px-3 py-1.5 rounded-md text-sm font-medium transition', filter === f ? 'bg-[#00d4aa] text-[#0a0e1a]' : 'text-gray-400 hover:text-white')}>{f}</button>
           ))}
@@ -269,7 +269,7 @@ export default function TodaySignals() {
         {filteredSignals.length === 0 ? (
           <div className="text-center text-gray-500 py-8 text-sm">暂无信号数据</div>
         ) : filteredSignals.map((sig, i) => (
-          <div key={i} className="bg-[#0d1220] border border-[#1f2937] rounded-xl p-4 hover:border-[#374151] transition flex items-center gap-4">
+          <div key={i} className="card-glass p-4 hover:border-white/[0.12] transition flex items-center gap-4">
             <div className={clsx('w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0', sig.final_signal === 'buy' ? 'bg-[#14532d]' : sig.final_signal === 'sell' ? 'bg-[#7f1d1d]' : 'bg-[#374151]')}>
               {sig.final_signal === 'buy' ? <TrendingUp size={24} className="text-[#4ade80]" /> : sig.final_signal === 'sell' ? <TrendingDown size={24} className="text-[#f87171]" /> : <div className="w-6 h-6 rounded-full bg-gray-500" />}
             </div>

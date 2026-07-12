@@ -17,16 +17,17 @@ const MOBILE_NAV = [
 export default function Layout() {
   const [collapsed, setCollapsed] = useState(false)
   return (
-    <div className="flex h-screen overflow-hidden bg-[#0a0e1a]">
+    <div className="flex h-screen overflow-hidden bg-black">
       <Sidebar collapsed={collapsed} onToggle={() => setCollapsed(c => !c)} />
       <main className="flex-1 overflow-y-auto pb-14 md:pb-0">
         <Outlet />
       </main>
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-[#0d1220] border-t border-[#1f2937] flex items-center justify-around px-1">
+      <nav className="md:hidden fixed bottom-0 left:0 right-0 z-50 bg-[#0a0a0a] border-t border-bg-border flex items-center justify-around px-1"
+           style={{left: 0, right: 0}}>
         {MOBILE_NAV.map(({ to, icon: Icon, label }) => (
           <NavLink key={to} to={to} className={({ isActive }) => clsx(
             'flex flex-col items-center gap-0.5 py-2 px-1 min-w-0 flex-1',
-            isActive ? 'text-[#00d4aa]' : 'text-gray-500'
+            isActive ? 'text-accent' : 'text-gray-500'
           )}>
             <Icon size={20} className="shrink-0" />
             <span className="text-[10px] truncate">{label}</span>
