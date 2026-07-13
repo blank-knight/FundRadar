@@ -1,6 +1,22 @@
 {
   "items": [
     {
+      "signal_date": "2026-07-13T00:00:00",
+      "target_symbol": "000300",
+      "target_name": "沪深300",
+      "final_signal": "sell",
+      "confidence": 61.4,
+      "blogger_consensus_score": 0.0,
+      "news_sentiment_score": 0.3089,
+      "retail_sentiment_score": -0.5764,
+      "fund_flow_score": -0.8076,
+      "industry_momentum_score": -1.0,
+      "search_sentiment_score": null,
+      "reasoning": "今日沪深300减仓信号，主要依据情绪面和量化面数据。情绪面显示博主共识中性，新闻偏正面，散户情绪偏负面。量化面则显示北向资金净流出，行业均涨下跌，PE值适中。数据局限性在于情绪和量化数据均存在滞后性。风险提示：投资需谨慎，市场波动风险需注意。",
+      "analyzed_news_count": 20,
+      "participating_bloggers": 0
+    },
+    {
       "signal_date": "2026-06-21T00:00:00",
       "target_symbol": "000300",
       "target_name": "沪深300",
@@ -11,6 +27,7 @@
       "retail_sentiment_score": -0.2063,
       "fund_flow_score": null,
       "industry_momentum_score": null,
+      "search_sentiment_score": null,
       "reasoning": "今日沪深300持观望信号，基于情绪面数据。博主和新闻情绪中性偏正面，散户情绪微弱负面。量化面数据暂不可用。综合得分微正，反映市场情绪稳定。注意，情绪数据波动较大，量化数据缺失，决策需谨慎。市场波动风险存在，请理性投资。",
       "analyzed_news_count": 34,
       "participating_bloggers": 0
@@ -26,6 +43,7 @@
       "retail_sentiment_score": -0.2047,
       "fund_flow_score": -0.0846,
       "industry_momentum_score": -0.4875,
+      "search_sentiment_score": null,
       "reasoning": "今日沪深300持有观望信号，基于65.1%置信度。情绪面显示，24位博主偏多看法，20条新闻偏正面，但散户情绪偏弱。量化面看，北向资金净流出，资金面得分下降，行业PE适中。需注意，情绪和量化数据各有局限性，市场存在不确定性。投资需谨慎。",
       "analyzed_news_count": 20,
       "participating_bloggers": 24
@@ -41,6 +59,7 @@
       "retail_sentiment_score": 0.0,
       "fund_flow_score": -0.0846,
       "industry_momentum_score": -0.4875,
+      "search_sentiment_score": null,
       "reasoning": "今日沪深300持有观望，依据情绪面和量化面数据。情绪面，博主多数看涨，新闻中性，散户情绪平稳。量化面，北向资金净流出，行业涨势弱。北向资金净流出表明外资谨慎，行业PE值适中。但数据有限，仅供参考。投资需谨慎。",
       "analyzed_news_count": 0,
       "participating_bloggers": 24
@@ -56,24 +75,10 @@
       "retail_sentiment_score": -0.1872,
       "fund_flow_score": -0.8076,
       "industry_momentum_score": null,
+      "search_sentiment_score": null,
       "reasoning": "今日沪深300持有观望信号基于情绪面与量化面综合评估。情绪面，博主与新闻情绪偏多，但散户情绪略悲观；量化面，北向资金流出，行业动能微弱。北向资金流出或反映短期资金谨慎态度。数据存在局限性，仅作为参考。风险提示：市场波动，投资需谨慎。",
       "analyzed_news_count": 47,
       "participating_bloggers": 5
-    },
-    {
-      "signal_date": "2026-06-15T00:00:00",
-      "target_symbol": "000300",
-      "target_name": "沪深300",
-      "final_signal": "hold",
-      "confidence": 63.1,
-      "blogger_consensus_score": 0.0,
-      "news_sentiment_score": 0.393,
-      "retail_sentiment_score": 0.0,
-      "fund_flow_score": null,
-      "industry_momentum_score": null,
-      "reasoning": "今日沪深300信号为“持有观望”，基于博主中立共识（0位博主，共识分+0.00）及偏正面新闻情绪（42条，情绪分+0.39），综合得分+0.157。注意数据来源有限，仅供参考。投资需谨慎，市场波动风险自担。",
-      "analyzed_news_count": 42,
-      "participating_bloggers": 0
     }
   ]
 }
