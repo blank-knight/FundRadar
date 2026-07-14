@@ -1,112 +1,112 @@
 {
-  "id": 4,
-  "snapshot_date": "2026-07-13T07:35:16.048871",
-  "northbound_hgt": -9.28,
-  "northbound_sgt": -31.1,
-  "northbound_total": -40.38,
-  "industry_avg_change_pct": -3.77,
+  "id": 5,
+  "snapshot_date": "2026-07-14T07:35:30.860454",
+  "northbound_hgt": 0.0,
+  "northbound_sgt": 0.0,
+  "northbound_total": 0.0,
+  "industry_avg_change_pct": 1.7,
   "industry_top_json": [
     {
       "rank": 1,
       "name": "航空机场",
-      "change_pct": -2.18,
+      "change_pct": 0.74,
       "code": "BK0420",
-      "up_count": 1,
-      "down_count": 13,
-      "leader": "000089",
-      "leader_change": 0.64
+      "up_count": 13,
+      "down_count": 1,
+      "leader": "600221",
+      "leader_change": 1.53
     },
     {
       "rank": 2,
       "name": "铁路公路",
-      "change_pct": -0.35,
+      "change_pct": 1.9,
       "code": "BK0421",
-      "up_count": 19,
-      "down_count": 16,
-      "leader": "601107",
-      "leader_change": 2.7
+      "up_count": 34,
+      "down_count": 1,
+      "leader": "002357",
+      "leader_change": 9.99
     },
     {
       "rank": 3,
       "name": "物流",
-      "change_pct": -1.86,
+      "change_pct": 1.91,
       "code": "BK0422",
-      "up_count": 13,
-      "down_count": 34,
-      "leader": "601598",
-      "leader_change": 1.51
+      "up_count": 42,
+      "down_count": 4,
+      "leader": "000626",
+      "leader_change": 5.81
     },
     {
       "rank": 4,
       "name": "水泥",
-      "change_pct": -3.32,
+      "change_pct": 1.26,
       "code": "BK0424",
-      "up_count": 2,
-      "down_count": 21,
-      "leader": "600801",
-      "leader_change": 9.83
+      "up_count": 18,
+      "down_count": 5,
+      "leader": "600802",
+      "leader_change": 3.43
     },
     {
       "rank": 5,
       "name": "公用事业",
-      "change_pct": -2.13,
+      "change_pct": 1.89,
       "code": "BK0427",
-      "up_count": 38,
-      "down_count": 105,
-      "leader": "603318",
-      "leader_change": 10.04
+      "up_count": 127,
+      "down_count": 13,
+      "leader": "605028",
+      "leader_change": 9.99
     }
   ],
   "industry_bottom_json": [
     {
       "rank": 96,
       "name": "数字媒体",
-      "change_pct": -5.02,
+      "change_pct": 0.78,
       "code": "BK1221",
-      "up_count": 0,
-      "down_count": 15,
-      "leader": "300418",
-      "leader_change": -2.47
+      "up_count": 9,
+      "down_count": 6,
+      "leader": "603466",
+      "leader_change": 10.05
     },
     {
       "rank": 97,
       "name": "影视院线",
-      "change_pct": -7.13,
+      "change_pct": -0.31,
       "code": "BK1222",
-      "up_count": 0,
-      "down_count": 18,
-      "leader": "600088",
-      "leader_change": -2.97
+      "up_count": 10,
+      "down_count": 7,
+      "leader": "000802",
+      "leader_change": 3.19
     },
     {
       "rank": 98,
       "name": "其他电子Ⅱ",
-      "change_pct": -8.12,
+      "change_pct": 1.76,
       "code": "BK1223",
-      "up_count": 1,
-      "down_count": 32,
-      "leader": "603933",
-      "leader_change": 10.02
+      "up_count": 24,
+      "down_count": 9,
+      "leader": "301099",
+      "leader_change": 11.32
     },
     {
       "rank": 99,
       "name": "纺织制造",
-      "change_pct": -3.42,
+      "change_pct": 2.11,
       "code": "BK1224",
-      "up_count": 6,
-      "down_count": 25,
-      "leader": "002674",
-      "leader_change": 7.01
+      "up_count": 27,
+      "down_count": 6,
+      "leader": "605189",
+      "leader_change": 9.98
     },
     {
       "rank": 100,
       "name": "服装家纺",
-      "change_pct": -3.17,
+      "change_pct": 1.67,
       "code": "BK1225",
-      "up_count": 7,
-      "down_count": 53,
-      "leader": "002327",
-      "leader_change": 1.95
+      "up_count": 53,
+      "down_count": 7,
+      "leader": "300005",
+      "leader_change": 5.75
     }
   ],
   "fund_flow_000300": null,
@@ -115,8 +115,8 @@
   "dragon_tiger_count": 0,
   "dragon_tiger_net_buy_wan": 0.0,
   "dragon_tiger_top_json": [],
-  "pe_000300": 14.25,
-  "pb_000300": 0.0,
-  "fund_flow_score": -0.8076,
-  "industry_momentum_score": -1.0
+  "pe_000300": null,
+  "pb_000300": null,
+  "fund_flow_score": 0.0,
+  "industry_momentum_score": 0.925
 }
