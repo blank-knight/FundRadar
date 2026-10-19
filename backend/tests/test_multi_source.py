@@ -103,29 +103,29 @@ class TestWeightedScore:
     """加权计算测试 — V1 三维 + V2 五维。"""
 
     def test_all_positive(self):
-        from app.analyzer.signal_generator import _calc_v3_score
-        score = _calc_v3_score(0.8, 0.6, 0.4, 0.45, 0.30, 0.25)
+        from app.analyzer.signal_generator import _calc_v3_weighted
+        score = _calc_v3_weighted(0.8, 0.6, 0.4, 0.45, 0.30, 0.25)
         assert score > 0
         assert abs(score - (0.8*0.45 + 0.6*0.30 + 0.4*0.25)) < 0.001
 
     def test_all_negative(self):
-        from app.analyzer.signal_generator import _calc_v3_score
-        score = _calc_v3_score(-0.8, -0.6, -0.4, 0.45, 0.30, 0.25)
+        from app.analyzer.signal_generator import _calc_v3_weighted
+        score = _calc_v3_weighted(-0.8, -0.6, -0.4, 0.45, 0.30, 0.25)
         assert score < 0
 
     def test_mixed_signals(self):
-        from app.analyzer.signal_generator import _calc_v3_score
-        score = _calc_v3_score(0.5, 0.0, -0.3, 0.45, 0.30, 0.25)
+        from app.analyzer.signal_generator import _calc_v3_weighted
+        score = _calc_v3_weighted(0.5, 0.0, -0.3, 0.45, 0.30, 0.25)
         assert abs(score - 0.15) < 0.01
 
     def test_extreme_bullish(self):
-        from app.analyzer.signal_generator import _calc_v3_score
-        score = _calc_v3_score(1.0, 1.0, 1.0, 0.45, 0.30, 0.25)
+        from app.analyzer.signal_generator import _calc_v3_weighted
+        score = _calc_v3_weighted(1.0, 1.0, 1.0, 0.45, 0.30, 0.25)
         assert abs(score - 1.0) < 0.001
 
     def test_extreme_bearish(self):
-        from app.analyzer.signal_generator import _calc_v3_score
-        score = _calc_v3_score(-1.0, -1.0, -1.0, 0.45, 0.30, 0.25)
+        from app.analyzer.signal_generator import _calc_v3_weighted
+        score = _calc_v3_weighted(-1.0, -1.0, -1.0, 0.45, 0.30, 0.25)
         assert abs(score - (-1.0)) < 0.001
 
     def test_v1_weights_sum_to_one(self):
@@ -161,6 +161,23 @@ class TestWeightedScore:
         from app.analyzer.signal_generator import _calc_v5_score
         score, w = _calc_v5_score(0.5, 0.3, -0.2, None, None)
         assert w == "v1_fallback"
+        assert -1 <= score <= 1
+
+    def test_v3_weights_sum_to_one(self):
+        """V3 六维权重之和 = 1.0。"""
+        from app.analyzer.signal_generator import (
+            W_BLOGGER_V3, W_NEWS_V3, W_RETAIL_V3,
+            W_FUND_FLOW_V3, W_INDUSTRY_V3, W_SEARCH_V3
+        )
+        total = (W_BLOGGER_V3 + W_NEWS_V3 + W_RETAIL_V3
+                 + W_FUND_FLOW_V3 + W_INDUSTRY_V3 + W_SEARCH_V3)
+        assert abs(total - 1.0) < 0.001
+
+    def test_v6_all_dim(self):
+        """V6 六维全开。"""
+        from app.analyzer.signal_generator import _calc_v6_score
+        score, w = _calc_v6_score(0.5, 0.3, -0.2, 0.6, 0.4, 0.3)
+        assert "v6" in w or "v3" in w
         assert -1 <= score <= 1
 
 

@@ -14,6 +14,7 @@ from app.scheduler.jobs import (
     job_weibo_crawl,
     job_sentiment_crawl,
     job_news_crawl,
+    job_search_crawl,
     job_verify_blogger_predictions,
     job_generate_signal,
     job_push_signal,
@@ -70,6 +71,17 @@ def setup_scheduler() -> AsyncIOScheduler:
         CronTrigger(hour=10, minute=30, timezone=TIMEZONE),
         id="news_crawl",
         name="财经新闻爬取",
+        replace_existing=True,
+        misfire_grace_time=300,
+    )
+
+    # 10:35 — 互联网搜索舆情采集 (Serper.dev → LLM 多空分析)
+    # V3 新增维度：搜全网金融观点，补充东财单源
+    scheduler.add_job(
+        job_search_crawl,
+        CronTrigger(hour=10, minute=35, timezone=TIMEZONE),
+        id="search_sentiment_crawl",
+        name="搜索舆情采集",
         replace_existing=True,
         misfire_grace_time=300,
     )

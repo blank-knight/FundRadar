@@ -26,6 +26,7 @@ interface SignalItem {
   retail_sentiment_score: number | null
   fund_flow_score: number | null
   industry_momentum_score: number | null
+  search_sentiment_score: number | null
   analyzed_news_count: number | null
 }
 
@@ -162,6 +163,7 @@ export default function TodaySignals() {
             <ScoreBar score={latest.retail_sentiment_score} label="散户情绪" />
             <ScoreBar score={latest.fund_flow_score} label="资金面" />
             <ScoreBar score={latest.industry_momentum_score} label="行业动能" />
+            <ScoreBar score={latest.search_sentiment_score} label="搜索舆情" />
           </div>
         </div>
       )}

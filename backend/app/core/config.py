@@ -31,6 +31,9 @@ class Settings(BaseSettings):
     XUNHUPAY_APPSECRET: str = ""
     XUNHUPAY_NOTIFY_URL: str = ""
 
+    # Search API (Serper.dev — Google Search)
+    SERPER_API_KEY: str = ""
+
     # Application
     DEBUG: bool = False
     API_PREFIX: str = "/api"

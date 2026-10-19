@@ -68,8 +68,8 @@ async def export_signals(conn: asyncpg.Connection):
     rows = await conn.fetch("""
         SELECT signal_date, target_symbol, target_name, final_signal, confidence,
                blogger_consensus_score, news_sentiment_score, retail_sentiment_score,
-               fund_flow_score, industry_momentum_score, reasoning,
-               analyzed_news_count, participating_bloggers
+               fund_flow_score, industry_momentum_score, search_sentiment_score,
+               reasoning, analyzed_news_count, participating_bloggers
         FROM daily_signals
         ORDER BY signal_date DESC
         LIMIT 5

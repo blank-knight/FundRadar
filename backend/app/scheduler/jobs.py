@@ -36,6 +36,7 @@ JOB_TIMEOUTS = {
     "update_nav": 30,
     "export_frontend": 120,  # 导出+git push+Vercel重建
     "portfolio_advisor": 300,  # LLM分析持仓建议（多次API调用，耗时）
+    "search_sentiment": 90,  # 搜索引擎舆情采集+LLM分析
 }
 
 
@@ -143,6 +144,21 @@ async def job_news_crawl():
         crawl_result = await run_news_crawl(db)
         analyze_result = await analyze_unanalyzed_news(db)
     logger.info(f"[scheduler] news: crawl={crawl_result} analyze={analyze_result}")
+
+
+@with_timeout("search_sentiment")
+async def job_search_crawl():
+    """互联网搜索舆情采集 — Serper.dev 搜索 → LLM 多空分析。
+
+    搜索全网金融观点（研报/论坛/媒体），LLM 判断多空情绪。
+    与 news 维度互补：news 是东财单源实时窄，search 是多源覆盖广。
+    需要 SERPER_API_KEY 环境变量。
+    """
+    from app.core.database import AsyncSessionLocal
+    from app.crawler.orchestrator import run_search_crawl
+    async with AsyncSessionLocal() as db:
+        result = await run_search_crawl(db)
+    logger.info(f"[scheduler] search_sentiment: {result}")
 
 
 @with_timeout("blogger_verify")

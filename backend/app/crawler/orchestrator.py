@@ -712,3 +712,70 @@ def _sum_main_net(flow_rows: list[dict], days: int = 5) -> float | None:
     recent = flow_rows[-days:]
     total = sum(r.get("main_net", 0) for r in recent)
     return round(total / 1e8, 2)  # 元 → 亿元
+
+
+# ════════════════════════════════════════════════════════════════════
+# V3: 互联网搜索舆情采集 (Serper.dev)
+# ════════════════════════════════════════════════════════════════════
+
+async def run_search_crawl(db: AsyncSession) -> dict:
+    """搜索引擎舆情采集 — 搜索全网金融观点 → LLM 多空分析 → 存储。
+
+    数据来源: Serper.dev (Google Search API)
+    存入: search_sentiments 表
+
+    流程:
+    1. 用预设关键词组搜索（沪深300/半导体/新能源/基金买卖时机）
+    2. 合并去重搜索结果（title + snippet）
+    3. 交给 LLM 判断多空情绪 → 情绪分 [-1, 1]
+    4. 存入 search_sentiments 表
+
+    需要 SERPER_API_KEY 环境变量。
+    """
+    from app.crawler.search import SearchCrawler
+    from app.analyzer.search_analyzer import analyze_search_results
+
+    t0 = time.time()
+    fetched = 0
+    error_msg = None
+    snapshot: dict = {}
+
+    try:
+        async with SearchCrawler(num_results=10) as crawler:
+            results = await crawler.get_market_sentiment_search()
+            fetched = len(results)
+
+        if not results:
+            logger.warning("[search] No results — SERPER_API_KEY may not be configured")
+            duration = time.time() - t0
+            await _write_crawl_log(db, "search_sentiment", "skipped", 0, 0, 0, duration,
+                                   "No SERPER_API_KEY or no results")
+            return {"saved": 0, "skipped": True, "reason": "no_api_key"}
+
+        # LLM 分析
+        sentiment = await analyze_search_results(db, results)
+
+        if sentiment:
+            snapshot = {
+                "result_count": fetched,
+                "score": sentiment.sentiment_score,
+                "label": sentiment.sentiment_label,
+                "bullish": sentiment.bullish_count,
+                "bearish": sentiment.bearish_count,
+                "summary": sentiment.summary[:200] if sentiment.summary else "",
+            }
+            status = "success"
+        else:
+            status = "partial"
+            snapshot = {"result_count": fetched}
+
+    except Exception as e:
+        error_msg = str(e)
+        status = "failed"
+        logger.error(f"Search crawl error: {e}", exc_info=True)
+
+    duration = time.time() - t0
+    saved = 1 if status == "success" else 0
+    await _write_crawl_log(db, "search_sentiment", status, fetched, saved, 0, duration, error_msg, snapshot)
+    logger.info(f"Search crawl done: fetched={fetched} saved={saved} status={status} duration={duration:.1f}s")
+    return {"saved": saved, "fetched": fetched, "status": status, **snapshot}

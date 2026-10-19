@@ -224,6 +224,9 @@ class DailySignal(Base):
     fund_flow_score: Mapped[Optional[float]] = mapped_column(Float, nullable=True)  # -1 to 1, 北向+主力资金
     industry_momentum_score: Mapped[Optional[float]] = mapped_column(Float, nullable=True)  # -1 to 1, 行业动能
 
+    # Signal components — 互联网舆情面 (V3: 搜索引擎全网观点)
+    search_sentiment_score: Mapped[Optional[float]] = mapped_column(Float, nullable=True)  # -1 to 1
+
     # Final signal
     final_signal: Mapped[str] = mapped_column(String(20), nullable=False)  # strong_buy, buy, hold, sell, strong_sell
     confidence: Mapped[float] = mapped_column(Float, nullable=False)  # 0-100
@@ -521,3 +524,42 @@ class QuantSnapshot(Base):
     __table_args__ = (
         Index("idx_quant_date", "snapshot_date", unique=True),
     )
+
+
+# ════════════════════════════════════════════════════════════════════
+# 互联网舆情层 (V3 — 搜索引擎 API 接入)
+# ════════════════════════════════════════════════════════════════════
+
+class SearchSentiment(Base):
+    """搜索引擎舆情快照 — 每次搜索+LLM分析后存一条。
+
+    数据来源: Serper.dev (Google Search API) → LLM 多空分析
+    采集器: app/crawler/search.py
+    分析器: app/analyzer/search_analyzer.py
+    """
+    __tablename__ = "search_sentiments"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+
+    # 情绪数据
+    sentiment_score: Mapped[float] = mapped_column(Float, nullable=False)  # -1 到 1
+    sentiment_label: Mapped[str] = mapped_column(String(20), nullable=False)  # bullish / bearish / neutral
+
+    # 搜索结果统计
+    result_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    bullish_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    bearish_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    neutral_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+
+    # LLM 分析结果
+    key_points: Mapped[Optional[list]] = mapped_column(JSON, nullable=True)   # 关键观点列表
+    summary: Mapped[Optional[str]] = mapped_column(Text, nullable=True)       # 综合判断摘要
+    query_terms: Mapped[Optional[list]] = mapped_column(JSON, nullable=True)  # 使用的搜索关键词
+
+    # 原始数据（审计用）
+    raw_results: Mapped[Optional[list]] = mapped_column(JSON, nullable=True)  # 搜索结果快照
+    llm_raw_response: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+
+    # 时间
+    captured_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
